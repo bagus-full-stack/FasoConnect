@@ -1,0 +1,11 @@
+torch
+transformers
+sentencepiece
+sacremoses
+accelerate
+soundfile
+scipy
+fastapi
+uvicorn
+redis
+python-multipart

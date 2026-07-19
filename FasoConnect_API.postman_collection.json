@@ -1,0 +1,496 @@
+{
+  "info": {
+    "name": "FasoConnect — API Linguistique Burkinabè",
+    "description": "Collection complète pour tester l'API de traduction et synthèse vocale",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Système",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Langues disponibles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/languages",
+              "host": ["{{base_url}}"],
+              "path": ["languages"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Traduction Francais vers Langues locales",
+      "item": [
+        {
+          "name": "Francais vers Moore",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bonjour, comment allez-vous ?\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"moore\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Francais vers Dioula",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bonjour tout le monde\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"dioula\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Francais vers Fulfulde",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bienvenue au Burkina Faso\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"fulfulde\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Francais vers Gourmantsema",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Merci beaucoup\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"gourmantsema\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Francais vers Dagaare",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bonne journee a tous\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"dagaare\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Traduction Langues locales vers Francais",
+      "item": [
+        {
+          "name": "Moore vers Francais",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"francais\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Dioula vers Francais",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"I ni ce\",\n  \"src_lang\": \"dioula\",\n  \"tgt_lang\": \"francais\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Fulfulde vers Francais",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Jam waali\",\n  \"src_lang\": \"fulfulde\",\n  \"tgt_lang\": \"francais\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Traduction Anglais et Langues locales",
+      "item": [
+        {
+          "name": "Anglais vers Moore",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Good morning, how are you?\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"moore\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Anglais vers Dioula",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Welcome to Burkina Faso\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"dioula\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Moore vers Anglais",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"anglais\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Traduction Langue locale vers Langue locale",
+      "item": [
+        {
+          "name": "Moore vers Dioula",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"dioula\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Dioula vers Fulfulde",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"I ni ce\",\n  \"src_lang\": \"dioula\",\n  \"tgt_lang\": \"fulfulde\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Fulfulde vers Moore",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Jam waali\",\n  \"src_lang\": \"fulfulde\",\n  \"tgt_lang\": \"moore\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Synthese Vocale TTS",
+      "item": [
+        {
+          "name": "TTS Moore",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"lang\": \"moore\",\n  \"speed\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tts",
+              "host": ["{{base_url}}"],
+              "path": ["tts"]
+            }
+          }
+        },
+        {
+          "name": "TTS Dioula",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"I ni ce\",\n  \"lang\": \"dioula\",\n  \"speed\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tts",
+              "host": ["{{base_url}}"],
+              "path": ["tts"]
+            }
+          }
+        },
+        {
+          "name": "TTS Fulfulde",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Jam waali\",\n  \"lang\": \"fulfulde\",\n  \"speed\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tts",
+              "host": ["{{base_url}}"],
+              "path": ["tts"]
+            }
+          }
+        },
+        {
+          "name": "TTS Francais",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bonjour tout le monde\",\n  \"lang\": \"francais\",\n  \"speed\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tts",
+              "host": ["{{base_url}}"],
+              "path": ["tts"]
+            }
+          }
+        },
+        {
+          "name": "TTS Moore Lent 0.75",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"lang\": \"moore\",\n  \"speed\": 0.75\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tts",
+              "host": ["{{base_url}}"],
+              "path": ["tts"]
+            }
+          }
+        },
+        {
+          "name": "TTS Moore Rapide 1.5",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"lang\": \"moore\",\n  \"speed\": 1.5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tts",
+              "host": ["{{base_url}}"],
+              "path": ["tts"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pipeline Traduire et Parler",
+      "item": [
+        {
+          "name": "Francais vers Moore avec Audio",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bonjour, comment allez-vous ?\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"moore\",\n  \"speed\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate-and-speak",
+              "host": ["{{base_url}}"],
+              "path": ["translate-and-speak"]
+            }
+          }
+        },
+        {
+          "name": "Francais vers Dioula avec Audio",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bienvenue au Burkina Faso\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"dioula\",\n  \"speed\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate-and-speak",
+              "host": ["{{base_url}}"],
+              "path": ["translate-and-speak"]
+            }
+          }
+        },
+        {
+          "name": "Anglais vers Fulfulde avec Audio",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Good morning everyone\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"fulfulde\",\n  \"speed\": 1.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate-and-speak",
+              "host": ["{{base_url}}"],
+              "path": ["translate-and-speak"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tests d erreurs",
+      "item": [
+        {
+          "name": "Langue inconnue - doit retourner 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Bonjour\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"klingon\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Body vide - doit retourner 422",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/translate",
+              "host": ["{{base_url}}"],
+              "path": ["translate"]
+            }
+          }
+        },
+        {
+          "name": "Speed hors limites - doit retourner 422",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Test\",\n  \"lang\": \"moore\",\n  \"speed\": 5.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tts",
+              "host": ["{{base_url}}"],
+              "path": ["tts"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

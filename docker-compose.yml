@@ -1,0 +1,34 @@
+# docker-compose.yml
+#version: "3.9"
+services:
+  api:
+    build:
+      context: .
+      args:
+        - HF_TOKEN=${HF_TOKEN}    # ← injecté depuis le .env au build
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis          # ← garantit que Redis démarre avant l'API
+    environment:
+      - TRANSFORMERS_CACHE=/models
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - model_cache:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]   # retirer si CPU uniquement
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  model_cache:

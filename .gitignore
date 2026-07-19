@@ -1,0 +1,93 @@
+# ══════════════════════════════════════════
+# SECRETS — Ne jamais committer
+# ══════════════════════════════════════════
+.env
+.env.local
+.env.production
+*.key
+*.pem
+*.cert
+
+# ══════════════════════════════════════════
+# MODÈLES & CACHE HUGGINGFACE
+# Plusieurs Go — ne pas mettre dans git
+# ══════════════════════════════════════════
+models/
+.cache/
+huggingface/
+
+# ══════════════════════════════════════════
+# DOCKER
+# ══════════════════════════════════════════
+docker-compose.override.yml
+
+# ══════════════════════════════════════════
+# PYTHON
+# ══════════════════════════════════════════
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.python-version
+
+# ══════════════════════════════════════════
+# AUDIO & FICHIERS GÉNÉRÉS
+# ══════════════════════════════════════════
+*.wav
+*.mp3
+*.ogg
+*.flac
+outputs/
+generated/
+
+# ══════════════════════════════════════════
+# LOGS
+# ══════════════════════════════════════════
+*.log
+logs/
+*.out
+
+# ══════════════════════════════════════════
+# TESTS & COVERAGE
+# ══════════════════════════════════════════
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ══════════════════════════════════════════
+# IDEs & ÉDITEURS
+# ══════════════════════════════════════════
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ══════════════════════════════════════════
+# NODE (frontend Angular SallesConnect)
+# ══════════════════════════════════════════
+node_modules/
+.angular/
+.npm/
+
+# ══════════════════════════════════════════
+# DONNÉES SENSIBLES
+# ══════════════════════════════════════════
+*.sqlite
+*.db
+data/
+datasets/
+corpus/

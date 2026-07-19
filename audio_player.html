@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>FasoConnect — Lecteur Audio TTS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 700px;
+    }
+    h1 {
+      font-size: 1.4rem;
+      color: #7c6af7;
+      margin-bottom: 8px;
+    }
+    p.subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+
+    /* ── Formulaire ── */
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 6px; }
+
+    select, input[type="number"] {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0f0f1a;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+    }
+    textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: #0f0f1a;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 100px;
+    }
+    textarea:focus, select:focus { outline: none; border-color: #7c6af7; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* ── Boutons ── */
+    .btn-group { display: flex; gap: 12px; margin-top: 20px; }
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    #btn-tts      { background: #7c6af7; color: white; }
+    #btn-pipeline { background: #2a6af7; color: white; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Résultat ── */
+    .result {
+      margin-top: 24px;
+      padding: 16px;
+      background: #0f0f1a;
+      border-radius: 8px;
+      border: 1px solid #2a2a4a;
+      display: none;
+    }
+    .result.visible { display: block; }
+
+    .translated-text {
+      font-size: 1.1rem;
+      color: #a8e6cf;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #0a1a0f;
+      border-radius: 6px;
+      border-left: 3px solid #4caf50;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 8px;
+      border-radius: 8px;
+    }
+    .meta {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 8px;
+    }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab {
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      border: 1px solid #2a2a4a;
+      background: transparent;
+      color: #aaa;
+      flex: 1;
+      text-align: center;
+    }
+    .tab.active { background: #7c6af7; color: white; border-color: #7c6af7; }
+
+    /* ── Base64 brut ── */
+    .b64-section { margin-top: 16px; }
+    .b64-section textarea {
+      min-height: 80px;
+      font-size: 0.75rem;
+      color: #666;
+    }
+    .b64-play-btn {
+      background: #4caf50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    /* ── Status ── */
+    .status {
+      font-size: 0.85rem;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 12px;
+      display: none;
+    }
+    .status.loading { display: block; background: #1a2a4a; color: #7c9af7; }
+    .status.error   { display: block; background: #2a0f0f; color: #f77c7c; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🔊 FasoConnect — Lecteur Audio TTS</h1>
+  <p class="subtitle">Synthèse vocale et traduction pour les langues burkinabè</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('tts')">Synthèse vocale</div>
+    <div class="tab" onclick="switchTab('pipeline')">Traduire + Écouter</div>
+    <div class="tab" onclick="switchTab('b64')">Coller du Base64</div>
+  </div>
+
+  <!-- TTS -->
+  <div id="tab-tts">
+    <div class="form-group">
+      <label>Texte à synthétiser</label>
+      <textarea id="tts-text" placeholder="Écris ton texte ici...">Ne y welame</textarea>
+    </div>
+    <div class="row">
+      <div class="form-group">
+        <label>Langue</label>
+        <select id="tts-lang">
+          <option value="moore">Mooré</option>
+          <option value="dioula">Dioula</option>
+          <option value="fulfulde">Fulfulde</option>
+          <option value="gourmantsema">Gourmantchéma</option>
+          <option value="dagaare">Dagaare</option>
+          <option value="francais">Français</option>
+          <option value="anglais">Anglais</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Vitesse (0.5 → 2.0)</label>
+        <input type="number" id="tts-speed" value="1.0" min="0.5" max="2.0" step="0.25">
+      </div>
+    </div>
+    <div class="btn-group">
+      <button id="btn-tts" onclick="callTTS()">▶ Synthétiser</button>
+    </div>
+  </div>
+
+  <!-- Pipeline -->
+  <div id="tab-pipeline" style="display:none">
+    <div class="form-group">
+      <label>Texte source</label>
+      <textarea id="pipe-text" placeholder="Écris ton texte ici...">Bonjour, comment allez-vous ?</textarea>
+    </div>
+    <div class="row">
+      <div class="form-group">
+        <label>Langue source</label>
+        <select id="pipe-src">
+          <option value="francais">Français</option>
+          <option value="anglais">Anglais</option>
+          <option value="moore">Mooré</option>
+          <option value="dioula">Dioula</option>
+          <option value="fulfulde">Fulfulde</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Langue cible</label>
+        <select id="pipe-tgt">
+          <option value="moore">Mooré</option>
+          <option value="dioula">Dioula</option>
+          <option value="fulfulde">Fulfulde</option>
+          <option value="gourmantsema">Gourmantchéma</option>
+          <option value="dagaare">Dagaare</option>
+          <option value="francais">Français</option>
+          <option value="anglais">Anglais</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button id="btn-pipeline" onclick="callPipeline()">🌍 Traduire et écouter</button>
+    </div>
+  </div>
+
+  <!-- Base64 brut -->
+  <div id="tab-b64" style="display:none">
+    <div class="b64-section">
+      <label>Colle ton audio_b64 ici (depuis Postman)</label>
+      <textarea id="b64-input" placeholder="eyJhdWRpb19iNjQiOiAiLi4uIn0..."></textarea>
+      <button class="b64-play-btn" onclick="playBase64()">▶ Écouter</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status" id="status"></div>
+
+  <!-- Résultat -->
+  <div class="result" id="result">
+    <div class="translated-text" id="translated-text" style="display:none"></div>
+    <audio id="audio-player" controls></audio>
+    <div class="meta" id="audio-meta"></div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+
+  function switchTab(tab) {
+    ['tts','pipeline','b64'].forEach(t => {
+      document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+      document.querySelectorAll('.tab')[['tts','pipeline','b64'].indexOf(t)]
+        .classList.toggle('active', t === tab);
+    });
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status ' + type;
+  }
+
+  function playAudio(b64, sampleRate, duration, translatedText) {
+    const audio = document.getElementById('audio-player');
+    audio.src = 'data:audio/wav;base64,' + b64;
+    audio.play();
+
+    if (translatedText) {
+      document.getElementById('translated-text').style.display = 'block';
+      document.getElementById('translated-text').textContent = '→ ' + translatedText;
+    } else {
+      document.getElementById('translated-text').style.display = 'none';
+    }
+
+    document.getElementById('audio-meta').textContent =
+      `Sample rate : ${sampleRate} Hz  •  Durée : ${duration}s`;
+
+    document.getElementById('result').classList.add('visible');
+    document.getElementById('status').className = 'status';
+  }
+
+  async function callTTS() {
+    const btn = document.getElementById('btn-tts');
+    btn.disabled = true;
+    setStatus('⏳ Synthèse en cours...', 'loading');
+
+    try {
+      const res = await fetch(API + '/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: document.getElementById('tts-text').value,
+          lang: document.getElementById('tts-lang').value,
+          speed: parseFloat(document.getElementById('tts-speed').value),
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Erreur API');
+      playAudio(data.audio_b64, data.sample_rate, data.duration_seconds, null);
+    } catch(e) {
+      setStatus('❌ ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function callPipeline() {
+    const btn = document.getElementById('btn-pipeline');
+    btn.disabled = true;
+    setStatus('⏳ Traduction + synthèse en cours...', 'loading');
+
+    try {
+      const res = await fetch(API + '/translate-and-speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: document.getElementById('pipe-text').value,
+          src_lang: document.getElementById('pipe-src').value,
+          tgt_lang: document.getElementById('pipe-tgt').value,
+          speed: 1.0,
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Erreur API');
+      playAudio(data.audio_b64, data.sample_rate, data.duration_seconds, data.translated_text);
+    } catch(e) {
+      setStatus('❌ ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function playBase64() {
+    const raw = document.getElementById('b64-input').value.trim();
+    if (!raw) { setStatus('❌ Colle le base64 d\'abord', 'error'); return; }
+
+    // Accepte le JSON complet de Postman ou le base64 brut
+    let b64 = raw;
+    try {
+      const parsed = JSON.parse(raw);
+      b64 = parsed.audio_b64 || parsed;
+    } catch(e) { /* c'est du base64 brut */ }
+
+    playAudio(b64, 16000, '?', null);
+  }
+</script>
+</body>
+</html>
