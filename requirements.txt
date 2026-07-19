@@ -1,3 +1,4 @@
+# ML
 torch
 transformers
 sentencepiece
@@ -5,7 +6,15 @@ sacremoses
 accelerate
 soundfile
 scipy
+huggingface_hub
+
+# API
 fastapi
 uvicorn
 redis
 python-multipart
+pydantic
+
+# Prod
+slowapi        # rate limiting
+python-dotenv  # chargement .env
