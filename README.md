@@ -441,5 +441,5 @@ docker system prune -a --volumes
 
 ## 📄 Licence
 
-Projet académique — EILCO 2025/2026.  
+Projet personel — 2025/2026.  
 Modèles Meta NLLB-200 et MMS-TTS sous licence [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
