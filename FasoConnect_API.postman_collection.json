@@ -1,15 +1,12 @@
 {
   "info": {
-    "name": "FasoConnect — API Linguistique Burkinabè",
-    "description": "Collection complète pour tester l'API de traduction et synthèse vocale",
+    "name": "FasoConnect — API Linguistique Burkinabè v1.0",
+    "description": "Collection complète : Traduction (NLLB-200) + TTS (MMS) + Historique",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8000",
-      "type": "string"
-    }
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "api_key",  "value": "ta_cle_api_ici",       "type": "string" }
   ],
   "item": [
     {
@@ -20,11 +17,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{base_url}}/health",
-              "host": ["{{base_url}}"],
-              "path": ["health"]
-            }
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
           }
         },
         {
@@ -32,255 +25,183 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{base_url}}/languages",
-              "host": ["{{base_url}}"],
-              "path": ["languages"]
-            }
+            "url": { "raw": "{{base_url}}/languages", "host": ["{{base_url}}"], "path": ["languages"] }
           }
         }
       ]
     },
     {
-      "name": "Traduction Francais vers Langues locales",
+      "name": "Traduction — Francais vers Locales",
       "item": [
         {
           "name": "Francais vers Moore",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Bonjour, comment allez-vous ?\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"moore\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Bonjour, comment allez-vous ?\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"moore\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
           "name": "Francais vers Dioula",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Bonjour tout le monde\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"dioula\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Bonjour tout le monde\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"dioula\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
           "name": "Francais vers Fulfulde",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Bienvenue au Burkina Faso\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"fulfulde\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Bienvenue au Burkina Faso\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"fulfulde\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
           "name": "Francais vers Gourmantsema",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Merci beaucoup\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"gourmantsema\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Merci beaucoup\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"gourmantsema\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
           "name": "Francais vers Dagaare",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Bonne journee a tous\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"dagaare\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Bonne journee a tous\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"dagaare\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         }
       ]
     },
     {
-      "name": "Traduction Langues locales vers Francais",
+      "name": "Traduction — Locales vers Francais",
       "item": [
         {
           "name": "Moore vers Francais",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"francais\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"francais\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
           "name": "Dioula vers Francais",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"I ni ce\",\n  \"src_lang\": \"dioula\",\n  \"tgt_lang\": \"francais\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"I ni ce\",\n  \"src_lang\": \"dioula\",\n  \"tgt_lang\": \"francais\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
           "name": "Fulfulde vers Francais",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Jam waali\",\n  \"src_lang\": \"fulfulde\",\n  \"tgt_lang\": \"francais\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Jam waali\",\n  \"src_lang\": \"fulfulde\",\n  \"tgt_lang\": \"francais\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         }
       ]
     },
     {
-      "name": "Traduction Anglais et Langues locales",
+      "name": "Traduction — Anglais et Locales",
       "item": [
         {
           "name": "Anglais vers Moore",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Good morning, how are you?\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"moore\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
-          }
-        },
-        {
-          "name": "Anglais vers Dioula",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Welcome to Burkina Faso\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"dioula\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Good morning, how are you?\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"moore\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
           "name": "Moore vers Anglais",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"anglais\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"anglais\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
+          }
+        },
+        {
+          "name": "Anglais vers Dioula",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Welcome to Burkina Faso\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"dioula\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         }
       ]
     },
     {
-      "name": "Traduction Langue locale vers Langue locale",
+      "name": "Traduction — Locale vers Locale",
       "item": [
         {
           "name": "Moore vers Dioula",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"dioula\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Ne y welame\",\n  \"src_lang\": \"moore\",\n  \"tgt_lang\": \"dioula\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
           "name": "Dioula vers Fulfulde",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"I ni ce\",\n  \"src_lang\": \"dioula\",\n  \"tgt_lang\": \"fulfulde\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
-          }
-        },
-        {
-          "name": "Fulfulde vers Moore",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Jam waali\",\n  \"src_lang\": \"fulfulde\",\n  \"tgt_lang\": \"moore\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"I ni ce\",\n  \"src_lang\": \"dioula\",\n  \"tgt_lang\": \"fulfulde\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         }
       ]
@@ -292,96 +213,60 @@
           "name": "TTS Moore",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"lang\": \"moore\",\n  \"speed\": 1.0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tts",
-              "host": ["{{base_url}}"],
-              "path": ["tts"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Ne y welame\",\n  \"lang\": \"moore\",\n  \"speed\": 1.0\n}" },
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] }
           }
         },
         {
           "name": "TTS Dioula",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"I ni ce\",\n  \"lang\": \"dioula\",\n  \"speed\": 1.0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tts",
-              "host": ["{{base_url}}"],
-              "path": ["tts"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"I ni ce\",\n  \"lang\": \"dioula\",\n  \"speed\": 1.0\n}" },
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] }
           }
         },
         {
           "name": "TTS Fulfulde",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Jam waali\",\n  \"lang\": \"fulfulde\",\n  \"speed\": 1.0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tts",
-              "host": ["{{base_url}}"],
-              "path": ["tts"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Jam waali\",\n  \"lang\": \"fulfulde\",\n  \"speed\": 1.0\n}" },
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] }
           }
         },
         {
           "name": "TTS Francais",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Bonjour tout le monde\",\n  \"lang\": \"francais\",\n  \"speed\": 1.0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tts",
-              "host": ["{{base_url}}"],
-              "path": ["tts"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Bonjour tout le monde\",\n  \"lang\": \"francais\",\n  \"speed\": 1.0\n}" },
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] }
           }
         },
         {
           "name": "TTS Moore Lent 0.75",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"lang\": \"moore\",\n  \"speed\": 0.75\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tts",
-              "host": ["{{base_url}}"],
-              "path": ["tts"]
-            }
-          }
-        },
-        {
-          "name": "TTS Moore Rapide 1.5",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Ne y welame\",\n  \"lang\": \"moore\",\n  \"speed\": 1.5\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tts",
-              "host": ["{{base_url}}"],
-              "path": ["tts"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Ne y welame\",\n  \"lang\": \"moore\",\n  \"speed\": 0.75\n}" },
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] }
           }
         }
       ]
@@ -393,101 +278,186 @@
           "name": "Francais vers Moore avec Audio",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Bonjour, comment allez-vous ?\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"moore\",\n  \"speed\": 1.0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate-and-speak",
-              "host": ["{{base_url}}"],
-              "path": ["translate-and-speak"]
-            }
-          }
-        },
-        {
-          "name": "Francais vers Dioula avec Audio",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Bienvenue au Burkina Faso\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"dioula\",\n  \"speed\": 1.0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate-and-speak",
-              "host": ["{{base_url}}"],
-              "path": ["translate-and-speak"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Bonjour, comment allez-vous ?\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"moore\",\n  \"speed\": 1.0\n}" },
+            "url": { "raw": "{{base_url}}/translate-and-speak", "host": ["{{base_url}}"], "path": ["translate-and-speak"] }
           }
         },
         {
           "name": "Anglais vers Fulfulde avec Audio",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Good morning everyone\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"fulfulde\",\n  \"speed\": 1.0\n}"
-            },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Good morning everyone\",\n  \"src_lang\": \"anglais\",\n  \"tgt_lang\": \"fulfulde\",\n  \"speed\": 1.0\n}" },
+            "url": { "raw": "{{base_url}}/translate-and-speak", "host": ["{{base_url}}"], "path": ["translate-and-speak"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Historique",
+      "item": [
+        {
+          "name": "POST Creer une entree",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"user_001\",\n  \"action_type\": \"translate\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"moore\",\n  \"source_text\": \"Bonjour tout le monde\",\n  \"result_text\": \"Ne y welame\"\n}" },
+            "url": { "raw": "{{base_url}}/history", "host": ["{{base_url}}"], "path": ["history"] }
+          }
+        },
+        {
+          "name": "GET Liste paginee",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}" }],
             "url": {
-              "raw": "{{base_url}}/translate-and-speak",
+              "raw": "{{base_url}}/history?limit=10&offset=0",
               "host": ["{{base_url}}"],
-              "path": ["translate-and-speak"]
+              "path": ["history"],
+              "query": [
+                { "key": "limit",  "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Filtrer par user_id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/history?user_id=user_001&limit=10&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["history"],
+              "query": [
+                { "key": "user_id", "value": "user_001" },
+                { "key": "limit",   "value": "10" },
+                { "key": "offset",  "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Filtrer par action_type",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/history?action_type=translate&limit=10&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["history"],
+              "query": [
+                { "key": "action_type", "value": "translate" },
+                { "key": "limit",       "value": "10" },
+                { "key": "offset",      "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Filtrer par lang",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/history?lang=moore&limit=10&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["history"],
+              "query": [
+                { "key": "lang",   "value": "moore" },
+                { "key": "limit",  "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "DELETE Supprimer une entree",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/history/REMPLACE-PAR-UUID",
+              "host": ["{{base_url}}"],
+              "path": ["history", "REMPLACE-PAR-UUID"]
+            }
+          }
+        },
+        {
+          "name": "DELETE Vider historique utilisateur",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "X-API-Key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/history?user_id=user_001",
+              "host": ["{{base_url}}"],
+              "path": ["history"],
+              "query": [{ "key": "user_id", "value": "user_001" }]
             }
           }
         }
       ]
     },
     {
-      "name": "Tests d erreurs",
+      "name": "Tests Erreurs",
       "item": [
         {
-          "name": "Langue inconnue - doit retourner 400",
+          "name": "Langue inconnue - 400",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Bonjour\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"klingon\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Bonjour\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"klingon\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
-          "name": "Body vide - doit retourner 422",
+          "name": "Body vide - 422",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{}"
-            },
-            "url": {
-              "raw": "{{base_url}}/translate",
-              "host": ["{{base_url}}"],
-              "path": ["translate"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
           }
         },
         {
-          "name": "Speed hors limites - doit retourner 422",
+          "name": "Cle API invalide - 403",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"text\": \"Test\",\n  \"lang\": \"moore\",\n  \"speed\": 5.0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/tts",
-              "host": ["{{base_url}}"],
-              "path": ["tts"]
-            }
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "mauvaise_cle" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Bonjour\",\n  \"src_lang\": \"francais\",\n  \"tgt_lang\": \"moore\"\n}" },
+            "url": { "raw": "{{base_url}}/translate", "host": ["{{base_url}}"], "path": ["translate"] }
+          }
+        },
+        {
+          "name": "Speed hors limites - 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"Test\",\n  \"lang\": \"moore\",\n  \"speed\": 5.0\n}" },
+            "url": { "raw": "{{base_url}}/tts", "host": ["{{base_url}}"], "path": ["tts"] }
           }
         }
       ]

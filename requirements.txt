@@ -1,4 +1,4 @@
-# ML
+# ── ML ────────────────────────────────────────
 torch
 transformers
 sentencepiece
@@ -8,13 +8,21 @@ soundfile
 scipy
 huggingface_hub
 
-# API
+# ── API ───────────────────────────────────────
 fastapi
 uvicorn
 redis
 python-multipart
 pydantic
 
-# Prod
-slowapi        # rate limiting
-python-dotenv  # chargement .env
+# ── Base de données (historique) ──────────────
+sqlmodel>=0.0.18
+alembic>=1.13.0
+
+# ── Sécurité & prod ───────────────────────────
+slowapi
+python-dotenv
+
+# ── Tests ─────────────────────────────────────
+pytest>=8.0.0
+httpx>=0.27.0

@@ -1,4 +1,4 @@
-# api/main.py — VERSION PRODUCTION
+# api/main.py — VERSION FINALE COMPLÈTE
 import os
 import json
 import hashlib
@@ -6,7 +6,6 @@ import logging
 import asyncio
 import time
 from contextlib import asynccontextmanager
-from typing import Optional
 
 import redis
 from fastapi import FastAPI, HTTPException, Request, Security, Depends
@@ -21,6 +20,8 @@ from slowapi.errors import RateLimitExceeded
 
 from translation.nllb_engine import NLLBTranslator, BURKINA_LANG_CODES
 from tts.mms_engine import MMSTTSEngine, MMS_TTS_MODELS
+from history.database import create_db_tables, get_session
+from history.router import router as history_router
 
 # ── Logging JSON structuré ────────────────────────────────────────────
 
@@ -40,22 +41,20 @@ handler.setFormatter(JSONFormatter())
 logging.basicConfig(level=logging.INFO, handlers=[handler])
 logger = logging.getLogger(__name__)
 
-# ── Configuration depuis .env ─────────────────────────────────────────
+# ── Configuration ─────────────────────────────────────────────────────
 
-API_KEY        = os.getenv("API_KEY")               # clé d'accès à l'API
-HF_TOKEN       = os.getenv("HF_TOKEN")              # token HuggingFace
-ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "*")   # ex: https://ton-domaine.com
+API_KEY        = os.getenv("API_KEY")
+HF_TOKEN       = os.getenv("HF_TOKEN")
+ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "*")
 CACHE_TTL      = int(os.getenv("CACHE_TTL", "3600"))
-INFER_TIMEOUT  = int(os.getenv("INFER_TIMEOUT", "60"))  # secondes
+INFER_TIMEOUT  = int(os.getenv("INFER_TIMEOUT", "60"))
 
-# ── Authentification API Key ─────────────────────────────────────────
+# ── Auth API Key ──────────────────────────────────────────────────────
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 async def verify_api_key(key: str = Security(api_key_header)):
-    """Vérifie la clé API si API_KEY est définie dans .env."""
     if not API_KEY:
-        # Pas de clé configurée → mode ouvert (dev uniquement)
         return True
     if key != API_KEY:
         raise HTTPException(
@@ -79,7 +78,8 @@ try:
     CACHE_ENABLED = True
     logger.info("Redis connecté", extra={"event": "redis_connected"})
 except Exception:
-    logger.warning("Redis non disponible — cache désactivé", extra={"event": "redis_unavailable"})
+    logger.warning("Redis non disponible — cache désactivé",
+                   extra={"event": "redis_unavailable"})
 
 def cache_get(key: str):
     if not CACHE_ENABLED:
@@ -113,19 +113,28 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("HF_TOKEN manquant", extra={"event": "hf_auth_missing"})
 
-    # 2. Chargement NLLB-200
+    # 2. Base de données
+    create_db_tables()
+    logger.info("Base de données prête", extra={"event": "db_ready"})
+
+    # 3. NLLB-200
     logger.info("Chargement NLLB-200...", extra={"event": "model_loading", "model": "nllb"})
     t0 = time.time()
     app.state.translator = NLLBTranslator()
-    logger.info("NLLB-200 prêt", extra={"event": "model_ready", "model": "nllb",
-                                         "duration_s": round(time.time() - t0, 1)})
+    logger.info("NLLB-200 prêt", extra={
+        "event": "model_ready", "model": "nllb",
+        "device": str(app.state.translator.device),
+        "duration_s": round(time.time() - t0, 1),
+    })
 
-    # 3. Chargement MMS-TTS
+    # 4. MMS-TTS
     logger.info("Chargement MMS-TTS...", extra={"event": "model_loading", "model": "mms"})
     t0 = time.time()
     app.state.tts = MMSTTSEngine()
-    logger.info("MMS-TTS prêt", extra={"event": "model_ready", "model": "mms",
-                                        "duration_s": round(time.time() - t0, 1)})
+    logger.info("MMS-TTS prêt", extra={
+        "event": "model_ready", "model": "mms",
+        "duration_s": round(time.time() - t0, 1),
+    })
 
     yield
 
@@ -134,24 +143,25 @@ async def lifespan(app: FastAPI):
 # ── Application ───────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="API Linguistique Burkinabè — FasoConnect",
-    description="Traduction & synthèse vocale pour les langues du Burkina Faso",
+    title="FasoConnect — API Linguistique Burkinabè",
+    description=(
+        "Traduction automatique et synthèse vocale pour les langues du Burkina Faso.\n\n"
+        "**Langues supportées :** Mooré · Dioula · Fulfulde · Gourmantchéma · Dagaare · Français · Anglais\n\n"
+        "**Modèles :** Meta NLLB-200 distilled 600M + Meta MMS-TTS\n\n"
+        "**Auth :** header `X-API-Key` requis si `API_KEY` configurée dans `.env`"
+    ),
     version="1.0.0",
     lifespan=lifespan,
-    # Désactive la doc en prod si souhaité
-    # docs_url=None, redoc_url=None,
 )
 
-# ── Middleware CORS ───────────────────────────────────────────────────
+# ── Middlewares ───────────────────────────────────────────────────────
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[ALLOWED_ORIGIN],   # ← restreint via .env
-    allow_methods=["GET", "POST"],
+    allow_origins=[ALLOWED_ORIGIN],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Content-Type", "X-API-Key"],
 )
-
-# ── Rate Limiter middleware ───────────────────────────────────────────
 
 app.state.limiter = limiter
 
@@ -159,16 +169,13 @@ app.state.limiter = limiter
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
-        content={"detail": "Trop de requêtes — réessaie dans quelques secondes."},
+        content={"detail": "Trop de requêtes. Réessaie dans quelques secondes."},
     )
-
-# ── Middleware de logging des requêtes ────────────────────────────────
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     t0 = time.time()
     response = await call_next(request)
-    duration_ms = round((time.time() - t0) * 1000)
     logger.info(
         f"{request.method} {request.url.path} → {response.status_code}",
         extra={
@@ -176,75 +183,87 @@ async def log_requests(request: Request, call_next):
             "method":      request.method,
             "path":        request.url.path,
             "status":      response.status_code,
-            "duration_ms": duration_ms,
-            "ip":          request.client.host,
+            "duration_ms": round((time.time() - t0) * 1000),
+            "ip":          request.client.host if request.client else "unknown",
         }
     )
     return response
 
-# ── Schémas Pydantic ──────────────────────────────────────────────────
+# ── Router historique ─────────────────────────────────────────────────
+
+app.include_router(history_router)
+
+# ── Schémas ───────────────────────────────────────────────────────────
 
 class TranslationRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=2000, example="Bonjour tout le monde")
-    src_lang: str = Field(..., example="francais")
-    tgt_lang: str = Field(..., example="moore")
+    text:     str   = Field(..., min_length=1, max_length=2000, example="Bonjour tout le monde")
+    src_lang: str   = Field(..., example="francais")
+    tgt_lang: str   = Field(..., example="moore")
 
 class TranslationResponse(BaseModel):
     translated_text: str
-    src_lang: str
-    tgt_lang: str
-    cached: bool = False
+    src_lang:        str
+    tgt_lang:        str
+    cached:          bool = False
 
 class TTSRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=500, example="Bonjour")
-    lang: str = Field(..., example="moore")
+    text:  str   = Field(..., min_length=1, max_length=500, example="Ne y welame")
+    lang:  str   = Field(..., example="moore")
     speed: float = Field(default=1.0, ge=0.5, le=2.0)
 
 class TTSResponse(BaseModel):
-    audio_b64: str
-    sample_rate: int
+    audio_b64:        str
+    sample_rate:      int
     duration_seconds: float
-    lang: str
+    lang:             str
 
 class TranslateAndSpeakRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=2000)
+    text:     str   = Field(..., min_length=1, max_length=2000)
     src_lang: str
     tgt_lang: str
-    speed: float = Field(default=1.0, ge=0.5, le=2.0)
+    speed:    float = Field(default=1.0, ge=0.5, le=2.0)
 
-# ── Helper : inférence async avec timeout ─────────────────────────────
+# ── Helper inférence async + timeout ─────────────────────────────────
 
 async def run_with_timeout(fn, *args, timeout: int = None):
     """
-    Exécute une fonction synchrone (inférence modèle) dans un thread séparé
-    pour ne pas bloquer l'event loop FastAPI.
-    Lève une HTTPException 504 si le timeout est dépassé.
+    Exécute une inférence synchrone dans un thread séparé
+    sans bloquer l'event loop FastAPI.
+    Lève 504 si le timeout est dépassé.
     """
-    _timeout = timeout or INFER_TIMEOUT
     try:
         return await asyncio.wait_for(
             asyncio.to_thread(fn, *args),
-            timeout=_timeout,
+            timeout=timeout or INFER_TIMEOUT,
         )
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=504,
-            detail=f"Inférence trop longue (timeout {_timeout}s). Réessaie avec un texte plus court."
+            detail=f"Inférence trop longue (>{timeout or INFER_TIMEOUT}s). "
+                   "Réessaie avec un texte plus court."
         )
 
-# ── Endpoints ─────────────────────────────────────────────────────────
+# ── Endpoints système ─────────────────────────────────────────────────
 
-@app.get("/health", tags=["Système"])
+@app.get(
+    "/health",
+    tags=["Système"],
+    summary="Healthcheck",
+)
 async def health():
-    """Healthcheck — utilisé par Docker et les load balancers."""
+    """Vérifie que l'API est opérationnelle — utilisé par Docker et les load balancers."""
     return {
         "status":  "ok",
-        "models":  ["nllb-200", "mms-tts"],
-        "cache":   "redis" if CACHE_ENABLED else "disabled",
         "version": "1.0.0",
+        "models":  ["nllb-200-distilled-600M", "mms-tts"],
+        "cache":   "redis" if CACHE_ENABLED else "disabled",
     }
 
-@app.get("/languages", tags=["Système"])
+@app.get(
+    "/languages",
+    tags=["Système"],
+    summary="Langues disponibles",
+)
 async def list_languages():
     """Retourne les langues supportées pour la traduction et la synthèse vocale."""
     return {
@@ -253,30 +272,33 @@ async def list_languages():
         "nllb_codes":            BURKINA_LANG_CODES,
     }
 
+# ── Traduction ────────────────────────────────────────────────────────
+
 @app.post(
     "/translate",
     response_model=TranslationResponse,
+    status_code=200,
     tags=["Traduction"],
+    summary="Traduire un texte",
     dependencies=[Depends(verify_api_key)],
 )
 @limiter.limit("20/minute")
 async def translate(request: Request, req: TranslationRequest):
     """
     Traduit un texte entre deux langues supportées.
-    - Rate limit : 20 requêtes/minute par IP
-    - Auth : header X-API-Key requis si API_KEY définie dans .env
+
+    - **Rate limit** : 20 requêtes/minute par IP
+    - **Cache** : résultat mis en cache Redis 1h
+    - **Async** : ne bloque pas les autres requêtes pendant l'inférence
     """
     cache_key = make_cache_key("trans", req.text, req.src_lang, req.tgt_lang)
     cached = cache_get(cache_key)
     if cached:
         return TranslationResponse(**cached, cached=True)
 
-    translator = request.app.state.translator
-
     try:
-        # ✅ Async — ne bloque pas les autres requêtes
         result = await run_with_timeout(
-            translator.translate,
+            request.app.state.translator.translate,
             req.text, req.src_lang, req.tgt_lang,
         )
     except ValueError as e:
@@ -284,35 +306,44 @@ async def translate(request: Request, req: TranslationRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erreur traduction : {e}", extra={"event": "translation_error", "error": str(e)})
+        logger.error(f"Erreur traduction : {e}", extra={"event": "translation_error"})
         raise HTTPException(status_code=500, detail="Erreur interne lors de la traduction")
 
-    data = {"translated_text": result, "src_lang": req.src_lang, "tgt_lang": req.tgt_lang}
+    data = {
+        "translated_text": result,
+        "src_lang":        req.src_lang,
+        "tgt_lang":        req.tgt_lang,
+    }
     cache_set(cache_key, data)
     return TranslationResponse(**data, cached=False)
+
+# ── Synthèse vocale ───────────────────────────────────────────────────
 
 @app.post(
     "/tts",
     response_model=TTSResponse,
+    status_code=200,
     tags=["Synthèse vocale"],
+    summary="Synthétiser un texte en audio",
     dependencies=[Depends(verify_api_key)],
 )
 @limiter.limit("10/minute")
 async def text_to_speech(request: Request, req: TTSRequest):
     """
     Génère un audio WAV encodé en base64 à partir d'un texte.
-    - Rate limit : 10 requêtes/minute par IP
+
+    - **Rate limit** : 10 requêtes/minute par IP
+    - **Speed** : 0.5 (lent) → 1.0 (normal) → 2.0 (rapide)
+    - **Format** : WAV 16000 Hz, mono, encodé base64
     """
     cache_key = make_cache_key("tts", req.text, req.lang, req.speed)
     cached = cache_get(cache_key)
     if cached:
         return TTSResponse(**cached)
 
-    tts = request.app.state.tts
-
     try:
         result = await run_with_timeout(
-            tts.synthesize,
+            request.app.state.tts.synthesize,
             req.text, req.lang, req.speed,
         )
     except ValueError as e:
@@ -320,7 +351,7 @@ async def text_to_speech(request: Request, req: TTSRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erreur TTS : {e}", extra={"event": "tts_error", "error": str(e)})
+        logger.error(f"Erreur TTS : {e}", extra={"event": "tts_error"})
         raise HTTPException(status_code=500, detail="Erreur interne lors de la synthèse vocale")
 
     data = {
@@ -332,28 +363,33 @@ async def text_to_speech(request: Request, req: TTSRequest):
     cache_set(cache_key, data)
     return TTSResponse(**data)
 
+# ── Pipeline ──────────────────────────────────────────────────────────
+
 @app.post(
     "/translate-and-speak",
+    status_code=200,
     tags=["Pipeline"],
+    summary="Traduire puis synthétiser en audio",
     dependencies=[Depends(verify_api_key)],
 )
 @limiter.limit("10/minute")
 async def translate_and_speak(request: Request, req: TranslateAndSpeakRequest):
     """
     Pipeline combiné : traduction + synthèse vocale en une seule requête.
-    - Rate limit : 10 requêtes/minute par IP
+
+    - **Rate limit** : 10 requêtes/minute par IP
+    - Retourne le texte traduit ET l'audio base64
+    - Résultat mis en cache Redis 1h
     """
     cache_key = make_cache_key("pipeline", req.text, req.src_lang, req.tgt_lang, req.speed)
     cached = cache_get(cache_key)
     if cached:
         return {**cached, "cached": True}
 
-    translator = request.app.state.translator
-    tts        = request.app.state.tts
-
+    # Étape 1 — Traduction
     try:
         translated = await run_with_timeout(
-            translator.translate,
+            request.app.state.translator.translate,
             req.text, req.src_lang, req.tgt_lang,
         )
     except HTTPException:
@@ -361,9 +397,10 @@ async def translate_and_speak(request: Request, req: TranslateAndSpeakRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur traduction : {e}")
 
+    # Étape 2 — Synthèse vocale sur le texte traduit
     try:
         audio = await run_with_timeout(
-            tts.synthesize,
+            request.app.state.tts.synthesize,
             translated, req.tgt_lang, req.speed,
         )
     except HTTPException:

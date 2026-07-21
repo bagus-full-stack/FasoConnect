@@ -1,6 +1,9 @@
 services:
   api:
-    build: .
+    build:
+      context: .
+      args:
+        - HF_TOKEN=${HF_TOKEN}
     ports:
       - "8000:8000"
     depends_on:
