@@ -1,0 +1,36 @@
+# requirements_finetuning.txt
+# Dépendances spécifiques au pipeline de fine-tuning
+# Installe avec : pip install -r requirements_finetuning.txt
+
+# ── ML Core ──────────────────────────────────────────────────────────
+torch>=2.1.0
+transformers>=4.40.0
+datasets>=2.18.0
+accelerate>=0.27.0
+tokenizers>=0.15.0
+
+# ── Fine-tuning ───────────────────────────────────────────────────────
+evaluate>=0.4.0
+sacrebleu>=2.3.0        # métrique BLEU
+sacremoses>=0.1.1       # tokenisation Moses
+sentencepiece>=0.1.99   # tokenisation NLLB
+rouge-score>=0.1.2      # métrique ROUGE (optionnel)
+bert-score>=0.3.13      # métrique BERTScore (optionnel)
+
+# ── Corpus ────────────────────────────────────────────────────────────
+opustools>=1.6.0        # téléchargement JW300/OPUS
+pandas>=2.0.0
+tqdm>=4.66.0
+
+# ── Transcription radio (Whisper) ────────────────────────────────────
+openai-whisper>=20231117
+soundfile>=0.12.1
+librosa>=0.10.0
+
+# ── Visualisation ─────────────────────────────────────────────────────
+tensorboard>=2.15.0     # suivi de l'entraînement
+matplotlib>=3.8.0       # courbes de loss (optionnel)
+
+# ── Utilitaires ───────────────────────────────────────────────────────
+huggingface_hub>=0.21.0
+python-dotenv>=1.0.0
