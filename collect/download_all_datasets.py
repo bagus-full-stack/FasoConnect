@@ -92,8 +92,8 @@ def download_smol_doc() -> list[dict]:
 
     pairs = []
     configs = {
-        "moore":    "smoldoc__en_mos",
-        "dioula":   "smoldoc__en_dyu",
+        "moore": "smoldoc__en_mos",
+        "dioula": "smoldoc__en_dyu",
         "fulfulde": "smoldoc__en_ff",
     }
     for lang_name, config in configs.items():
@@ -101,17 +101,35 @@ def download_smol_doc() -> list[dict]:
             logger.info(f"  SMOL doc : {config}...")
             ds = load_dataset("google/smol", config, split="train")
             count = 0
+
             for row in tqdm(ds, desc=f"    {lang_name}", leave=False):
-                src = row.get("src", "").strip()
-                tgt = row.get("trg", "").strip()
-                if src and tgt and len(src) > 5 and len(tgt) > 5:
-                    pairs.append({"src": src, "tgt": tgt,
-                                  "src_lang": "anglais", "tgt_lang": lang_name,
-                                  "source": "smol_doc"})
-                    count += 1
-            logger.info(f"  ✅ smoldoc {lang_name} : {count:,} paires")
+                # 🛠️ CORRECTION : Utilisation de 'srcs' et 'trgs' (listes de phrases)
+                srcs = row.get("srcs", [])
+                trgs = row.get("trgs", [])
+
+                # Sécurité : vérifier que les listes existent et sont alignées
+                if not srcs or not trgs or len(srcs) != len(trgs):
+                    continue
+
+                # Extraction phrase par phrase pour maximiser les paires d'entraînement
+                for s, t in zip(srcs, trgs):
+                    s = str(s).strip()
+                    t = str(t).strip()
+
+                    if s and t and len(s) > 5 and len(t) > 5:
+                        pairs.append({
+                            "src": s,
+                            "tgt": t,
+                            "src_lang": "anglais",
+                            "tgt_lang": lang_name,
+                            "source": "smol_doc"
+                        })
+                        count += 1
+
+            logger.info(f"  ✅ smoldoc {lang_name} : {count:,} paires extraites")
         except Exception as e:
             logger.warning(f"  ⚠️  smoldoc {config} : {e}")
+
     return pairs
 
 
@@ -163,90 +181,70 @@ def download_moorefr() -> list[dict]:
 
 # ── Source 4 : Bloom Library (sil-ai/bloom-lm) ───────────────────────
 
-def download_bloom_library() -> list[dict]:
-    """
-    Bloom Library — 363 langues, inclut mooré, dioula, fulfulde.
-    Données de livres et textes religieux.
-    """
-    try:
-        from datasets import load_dataset, get_dataset_config_names
-    except ImportError:
-        return []
-
-    pairs = []
-
-    # Codes dans Bloom Library
-    bloom_lang_map = {
-        "moore":    "mos",
-        "dioula":   "dyu",
-        "fulfulde": "fuv",
-    }
-
-    try:
-        # Vérifie les configs disponibles
-        configs = get_dataset_config_names("sil-ai/bloom-lm")
-        logger.info(f"  Bloom Library : {len(configs)} configs disponibles")
-    except Exception as e:
-        logger.warning(f"  ⚠️  Bloom Library configs : {e}")
-        return []
-
-    for lang_name, lang_code in bloom_lang_map.items():
-        # Cherche la config correspondante
-        matching = [c for c in configs if lang_code in c.lower()]
-        if not matching:
-            logger.info(f"  Bloom Library : {lang_name} ({lang_code}) non trouvé")
-            continue
-
-        config = matching[0]
-        try:
-            logger.info(f"  Bloom Library : {config}...")
-            ds = load_dataset("sil-ai/bloom-lm", config, split="train")
-
-            # Inspecte la structure
-            first = next(iter(ds))
-            text_field = None
-            for field in ["text", "content", "sentence", "story"]:
-                if field in first:
-                    text_field = field
-                    break
-
-            if not text_field:
-                logger.warning(f"  ⚠️  Bloom {lang_name} : champ texte introuvable {list(first.keys())}")
-                continue
-
-            # Bloom est monolingue → on crée des paires avec le français si disponible
-            count = 0
-            texts = []
-            ds2 = load_dataset("sil-ai/bloom-lm", config, split="train")
-            for row in tqdm(ds2, desc=f"    bloom {lang_name}", leave=False):
-                text = row.get(text_field, "").strip()
-                if text and len(text) > 10:
-                    texts.append(text)
-
-            # Données monolingues — utiles pour language modeling
-            # On les marque comme "monolingual" pour filtrage ultérieur
-            for text in texts:
-                pairs.append({
-                    "src": text, "tgt": "",
-                    "src_lang": lang_name, "tgt_lang": "",
-                    "source": "bloom_mono",
-                })
-                count += 1
-
-            logger.info(f"  ✅ Bloom {lang_name} : {count:,} textes (monolingue)")
-
-        except Exception as e:
-            logger.warning(f"  ⚠️  Bloom {config} : {str(e)[:80]}")
-
-    return pairs
+# def download_bloom_library() -> list[dict]:
+#     try:
+#         from datasets import load_dataset, get_dataset_config_names
+#     except ImportError:
+#         return []
+#
+#     pairs = []
+#
+#     # On autorise le script distant pour contourner le blocage de sécurité
+#     try:
+#         configs = get_dataset_config_names("sil-ai/bloom-lm", trust_remote_code=True)
+#         logger.info(f"  Bloom Library : {len(configs)} configs disponibles détectées")
+#     except Exception as e:
+#         logger.warning(f"  ⚠️  Bloom Library configs : {e}")
+#         return []
+#
+#     # Mapping avec les variantes découvertes dans la liste officielle
+#     bloom_targets = {
+#         "moore": ["mos"],
+#         "dioula": ["dyu"],
+#         "fulfulde": ["fuv", "fuh", "fub"],  # On ajoute les variantes nigériennes et adamawa !
+#     }
+#
+#     for lang_name, codes in bloom_targets.items():
+#         # Cherche si l'un de nos codes correspond à une config Bloom
+#         matching = [c for c in configs if any(code in c.lower() for code in codes)]
+#
+#         if not matching:
+#             logger.info(f"  Bloom Library : {lang_name} introuvable.")
+#             continue
+#
+#         for config in matching:
+#             try:
+#                 logger.info(f"  Bloom Library : Extraction de la variante {config}...")
+#
+#                 # Autorisation du script distant lors du téléchargement
+#                 ds = load_dataset("sil-ai/bloom-lm", config, split="train", trust_remote_code=True)
+#
+#                 count = 0
+#                 for row in tqdm(ds, desc=f"    bloom {config}", leave=False):
+#                     text = row.get("text", "").strip()
+#                     if text and len(text) > 10:
+#                         pairs.append({
+#                             "src": text,
+#                             "tgt": "",
+#                             "src_lang": lang_name,
+#                             "tgt_lang": "",
+#                             "source": f"bloom_mono_{config}"
+#                         })
+#                         count += 1
+#
+#                 logger.info(f"  ✅ Bloom {config} : {count:,} textes (monolingue)")
+#             except Exception as e:
+#                 logger.warning(f"  ⚠️  Bloom {config} : {str(e)[:80]}")
+#
+#     return pairs
 
 
-# ── Source 5 : openlanguagedata/oldi_seed (successeur NLLB-Seed) ─────
+# ── Source 5 : openlanguagedata/oldi_seed (successeur NLLB-Seed: CORRIGÉ avec ID matching) ─────
 
 def download_oldi_seed() -> list[dict]:
     """
-    OLDI Seed — successeur officiel de NLLB-Seed.
-    Couvre fuv_Latn (fulfulde) confirmé.
+    OLDI Seed — Les traductions sont liées par le champ 'id' entre différentes configs.
+    Couvre fuv_Latn (fulfulde).
     """
     try:
         from datasets import load_dataset, get_dataset_config_names
@@ -257,55 +255,63 @@ def download_oldi_seed() -> list[dict]:
 
     try:
         configs = get_dataset_config_names("openlanguagedata/oldi_seed")
-        logger.info(f"  OLDI Seed : {len(configs)} configs")
     except Exception as e:
         logger.warning(f"  ⚠️  OLDI Seed configs : {e}")
         return []
 
-    # Langues cibles
+    # 1. Étape cruciale : Charger l'anglais comme dictionnaire de référence
+    eng_dict = {}
+    try:
+        logger.info("  OLDI Seed : Téléchargement de l'anglais (eng_Latn) pour le matching ID...")
+        ds_eng = load_dataset("openlanguagedata/oldi_seed", "eng_Latn", split="train")
+        for row in ds_eng:
+            # On stocke { id: phrase_en_anglais }
+            if "id" in row and "text" in row:
+                eng_dict[row["id"]] = row["text"].strip()
+        logger.info(f"  ✅ Dictionnaire anglais prêt : {len(eng_dict):,} phrases de référence")
+    except Exception as e:
+        logger.warning(f"  ⚠️  OLDI Seed (eng_Latn) échoué : {str(e)[:80]}")
+        return []  # On arrête si on n'a pas l'anglais pour faire les paires
+
+    # 2. Chercher nos langues cibles
     targets = {
-        "moore":    ["mos_Latn", "mos-Latn", "mos"],
-        "dioula":   ["dyu_Latn", "dyu-Latn", "dyu"],
+        "moore": ["mos_Latn", "mos-Latn", "mos"],
+        "dioula": ["dyu_Latn", "dyu-Latn", "dyu"],
         "fulfulde": ["fuv_Latn", "fuv-Latn", "fuv"],
     }
 
     for lang_name, codes in targets.items():
         config_found = next((c for c in configs if any(code in c for code in codes)), None)
         if not config_found:
-            logger.info(f"  OLDI Seed : {lang_name} non disponible")
-            continue
+            continue  # Passe au suivant si la langue n'est pas dans le dataset
 
         try:
-            logger.info(f"  OLDI Seed : {config_found}...")
-            ds = load_dataset("openlanguagedata/oldi_seed", config_found, split="train")
-
-            first = next(iter(ds))
-            logger.info(f"  Champs : {list(first.keys())}")
+            logger.info(f"  OLDI Seed : Match avec {config_found}...")
+            ds2 = load_dataset("openlanguagedata/oldi_seed", config_found, split="train")
 
             count = 0
-            ds2 = load_dataset("openlanguagedata/oldi_seed", config_found, split="train")
             for row in ds2:
-                # Champs typiques OLDI : 'translation' dict ou 'source'/'target'
-                trans = row.get("translation", {})
-                if trans:
-                    src = trans.get("eng_Latn", trans.get("fra_Latn", "")).strip()
-                    tgt = trans.get(codes[0], "").strip()
-                else:
-                    src = row.get("source", row.get("eng", "")).strip()
-                    tgt = row.get("target", row.get(codes[0], "")).strip()
+                row_id = row.get("id")
+                tgt = row.get("text", "").strip()
+
+                # 3. La magie opère : on récupère l'anglais grâce à l'ID !
+                src = eng_dict.get(row_id, "")
 
                 if src and tgt and len(src) > 5 and len(tgt) > 5:
-                    pairs.append({"src": src, "tgt": tgt,
-                                  "src_lang": "anglais", "tgt_lang": lang_name,
-                                  "source": "oldi_seed"})
+                    pairs.append({
+                        "src": src,
+                        "tgt": tgt,
+                        "src_lang": "anglais",
+                        "tgt_lang": lang_name,
+                        "source": "oldi_seed"
+                    })
                     count += 1
 
-            logger.info(f"  ✅ OLDI Seed {lang_name} : {count:,} paires")
+            logger.info(f"  ✅ OLDI Seed {lang_name} : {count:,} paires trouvées par ID")
         except Exception as e:
             logger.warning(f"  ⚠️  OLDI Seed {config_found} : {str(e)[:80]}")
 
     return pairs
-
 
 # ── Source 6 : facebook/flores dev (validation) ───────────────────────
 
@@ -358,7 +364,7 @@ def build_corpus():
         ("1/6 — Google SMOL sentences ✅",        download_smol_sent),
         ("2/6 — Google SMOL documents ✅",         download_smol_doc),
         ("3/6 — MooreFRCollections (mooré-fra)",   download_moorefr),
-        ("4/6 — Bloom Library (sil-ai)",           download_bloom_library),
+        ("4/6 — Bloom Library (sil-ai)",           None), # download_bloom_library
         ("5/6 — OLDI Seed (successeur NLLB-Seed)", download_oldi_seed),
         ("6/6 — facebook/flores dev (validation)", download_flores_validation),
     ]

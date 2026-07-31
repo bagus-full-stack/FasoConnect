@@ -24,6 +24,7 @@ bert-score>=0.3.13      # métrique BERTScore (optionnel)
 opustools>=1.6.0        # téléchargement JW300/OPUS
 pandas>=2.0.0
 tqdm>=4.66.0
+pyarrow>=10.0.0
 
 # ── Transcription radio (Whisper) ────────────────────────────────────
 openai-whisper>=20231117
