@@ -25,17 +25,18 @@ API de traduction automatique et synthèse vocale pour les langues du Burkina Fa
 
 ## 🗣️ Langues supportées
 
-| Langue | Code NLLB | Code interne | Traduction | TTS |
-|---|---|---|---|---|
-| Mooré | `mos_Latn` | `moore` | ✅ | ✅ |
-| Dioula / Jula | `dyu_Latn` | `dioula` | ✅ | ✅ |
-| Fulfulde | `fuv_Latn` | `fulfulde` | ✅ | ✅ |
-| Gourmantchéma | `gux_Latn` | `gourmantsema` | ✅ | ✅ |
-| Dagaare | `dga_Latn` | `dagaare` | ✅ | ✅ |
-| Français | `fra_Latn` | `francais` | ✅ | ✅ |
-| Anglais | `eng_Latn` | `anglais` | ✅ | ✅ |
+| Langue | Code NLLB | Code interne | Traduction | TTS | Fine-tuning |
+|---|---|---|---|---|---|
+| Mooré | `mos_Latn` | `moore` | ✅ | ✅ | ✅ |
+| Dioula / Jula | `dyu_Latn` | `dioula` | ✅ | ✅ | ✅ |
+| Fulfulde | `fuv_Latn` | `fulfulde` | ✅ | ✅ | ✅ |
+| Gourmantchéma | `gux_Latn` | `gourmantsema` | ✅ | ✅ | ⚠️ peu de données |
+| Dagaare | `dga_Latn` | `dagaare` | ✅ | ✅ | ⚠️ peu de données |
+| Français | `fra_Latn` | `francais` | ✅ | ✅ | pivot |
+| Anglais | `eng_Latn` | `anglais` | ✅ | ✅ | pivot |
 
-Toutes les combinaisons bidirectionnelles sont supportées.
+Toutes les combinaisons bidirectionnelles sont supportées :
+`Français ↔ Langue locale`, `Anglais ↔ Langue locale`, `Langue locale ↔ Langue locale`
 
 ---
 
@@ -43,39 +44,49 @@ Toutes les combinaisons bidirectionnelles sont supportées.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│         Clients (Postman · audio_player · Angular)  │
+│      Clients (Postman · audio_player · Angular)     │
 └──────────────────────────┬──────────────────────────┘
                            │ HTTPS + X-API-Key
 ┌──────────────────────────▼──────────────────────────┐
-│    FastAPI — Auth · Rate Limit · CORS · Logs JSON   │
-│  ┌─────────────┐  ┌──────────┐  ┌────────────────┐  │
-│  │ /translate  │  │  /tts    │  │ /history       │  │
-│  │ /translate- │  │          │  │ GET POST DELETE│  │
-│  │ and-speak   │  │          │  │                │  │
-│  └──────┬──────┘  └────┬─────┘  └───────┬────────┘  │
-│         │              │                │            │
-│  ┌──────▼──────┐  ┌────▼─────┐  ┌──────▼──────────┐ │
-│  │ NLLB-200   │  │ MMS-TTS  │  │ SQLite/PostgreSQL│ │
-│  │ 600M CUDA  │  │ CUDA     │  │ + Alembic       │ │
-│  └─────────────┘  └──────────┘  └─────────────────┘ │
-│  ┌─────────────────────────────────────────────────┐ │
-│  │            Redis Cache (TTL 1h)                 │ │
-│  └─────────────────────────────────────────────────┘ │
-└──────────────────────── Docker Compose ─────────────┘
-                    WSL2 · RTX 3060 · CUDA
+│   FastAPI — Auth · Rate Limit · CORS · Logs JSON    │
+│                                                     │
+│  POST /translate          POST /tts                 │
+│  POST /translate-and-speak                          │
+│  GET/POST/DELETE /history                           │
+│                                                     │
+│  ┌──────────────┐  ┌───────────┐  ┌─────────────┐  │
+│  │ NLLB-200     │  │ MMS-TTS   │  │ SQLite /    │  │
+│  │ distilled    │  │ 7 langues │  │ PostgreSQL  │  │
+│  │ 600M · CUDA  │  │ CUDA      │  │ + Alembic   │  │
+│  └──────────────┘  └───────────┘  └─────────────┘  │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │         Redis Cache (TTL 1h)                │   │
+│  └─────────────────────────────────────────────┘   │
+└──────────── Docker Compose ─────────────────────────┘
+              WSL2 · RTX 3060 · CUDA 13.3
 ```
+
+**Stack technique :**
+- `FastAPI` + `Uvicorn` — API async
+- `Meta NLLB-200 distilled 600M` — traduction 7 langues
+- `Meta MMS-TTS` — synthèse vocale multilingue
+- `SQLModel` + `Alembic` — historique des requêtes
+- `Redis` — cache traductions et audio (TTL 1h)
+- `SlowAPI` — rate limiting par IP
+- `Docker Compose` — containerisation complète
 
 ---
 
 ## ⚙️ Prérequis
 
-| Outil | Version |
-|---|---|
-| Docker Desktop | 4.x+ |
-| WSL2 + Ubuntu 22.04 | — |
-| GPU NVIDIA (optionnel) | Driver 610+ |
-| RAM allouée à WSL | 10 Go minimum |
-| Espace disque libre | 15 Go minimum |
+| Outil | Version | Notes |
+|---|---|---|
+| Docker Desktop | 4.x+ | Avec WSL2 backend |
+| WSL2 + Ubuntu 22.04 | — | Pour le GPU |
+| GPU NVIDIA | Driver 610+ | Optionnel mais fortement recommandé |
+| RAM allouée WSL | 10 Go minimum | Voir `.wslconfig` |
+| Disque libre | 15 Go minimum | Modèles ~10 Go |
 
 ---
 
@@ -104,7 +115,7 @@ openssl rand -hex 32
 
 ### 4 — Configurer WSL2 (Windows)
 
-Crée `C:\Users\<user>\.wslconfig` :
+Crée ou édite `C:\Users\<user>\.wslconfig` :
 
 ```ini
 [wsl2]
@@ -115,6 +126,7 @@ gpuSupport=true
 networkingMode=mirrored
 ```
 
+Puis redémarre WSL :
 ```powershell
 wsl --shutdown
 ```
@@ -122,12 +134,11 @@ wsl --shutdown
 ### 5 — Activer le GPU dans Docker
 
 ```bash
-wsl -d Ubuntu
+# Dans Ubuntu WSL
 sudo nvidia-ctk runtime configure --runtime=docker
 ```
 
 Redémarre Docker Desktop, puis vérifie :
-
 ```bash
 docker run --rm --gpus all nvidia/cuda:12.3.1-base-ubuntu22.04 nvidia-smi
 ```
@@ -138,54 +149,56 @@ docker run --rm --gpus all nvidia/cuda:12.3.1-base-ubuntu22.04 nvidia-smi
 
 | Variable | Description | Défaut |
 |---|---|---|
-| `HF_TOKEN` | Token HuggingFace | — |
-| `API_KEY` | Clé d'accès à l'API | — |
+| `HF_TOKEN` | Token HuggingFace ([créer ici](https://huggingface.co/settings/tokens)) | — |
+| `HUGGING_FACE_HUB_TOKEN` | Même valeur que HF_TOKEN (évite un warning) | — |
+| `API_KEY` | Clé d'accès à l'API (générer avec `openssl rand -hex 32`) | — |
 | `ALLOWED_ORIGIN` | Domaine CORS autorisé | `*` |
 | `DATABASE_URL` | URL base de données | `sqlite:///./fasoconnect.db` |
-| `CACHE_TTL` | Durée cache Redis (secondes) | `3600` |
-| `INFER_TIMEOUT` | Timeout inférence (secondes) | `60` |
+| `CACHE_TTL` | Durée cache Redis en secondes | `3600` |
+| `INFER_TIMEOUT` | Timeout inférence en secondes | `60` |
 
 ---
 
 ## ▶️ Lancer l'API
 
-```bash
-# Premier lancement (~10 min — télécharge les modèles)
+```powershell
+# Premier lancement (~10–20 min — télécharge les modèles)
 docker compose up --build -d
 
 # Lancements suivants (~30 sec)
 docker compose up -d
 
-# Logs
+# Voir les logs
 docker compose logs -f api
 
-# Arrêt
+# Arrêter
 docker compose down
 ```
 
-Logs attendus :
+**Logs attendus au démarrage :**
 ```
-✅ HuggingFace authentifié
-✅ Base de données prête
-✅ NLLB-200 chargé sur cuda
-✅ MMS-TTS prêt
-INFO: Uvicorn running on http://0.0.0.0:8000
+api-1 | ✅ HuggingFace authentifié
+api-1 | ✅ Base de données prête
+api-1 | ✅ NLLB-200 chargé sur cuda
+api-1 | ✅ MMS-TTS prêt
+api-1 | INFO: Uvicorn running on http://0.0.0.0:8000
 ```
+
+**Swagger UI disponible sur :** `http://localhost:8000/docs`
 
 ---
 
 ## 📡 Endpoints
 
-Base URL : `http://localhost:8000`
-
-Auth : header `X-API-Key: ta_cle` sur tous les endpoints (si `API_KEY` configurée).
-
-Swagger UI : `http://localhost:8000/docs`
+### Authentification
+Ajouter le header à chaque requête (si `API_KEY` configurée) :
+```
+X-API-Key: ta_cle_api
+```
 
 ---
 
-### GET `/health`
-
+### `GET /health`
 ```json
 {
   "status": "ok",
@@ -197,85 +210,50 @@ Swagger UI : `http://localhost:8000/docs`
 
 ---
 
-### GET `/languages`
-
-```json
-{
-  "translation_supported": ["moore", "dioula", "fulfulde", "gourmantsema", "dagaare", "francais", "anglais"],
-  "tts_supported": ["moore", "dioula", "fulfulde", "gourmantsema", "dagaare", "francais", "anglais"],
-  "nllb_codes": { "moore": "mos_Latn", "...": "..." }
-}
-```
+### `GET /languages`
+Retourne les langues supportées pour la traduction et le TTS.
 
 ---
 
-### POST `/translate`
-
-Rate limit : 20 req/min par IP.
+### `POST /translate`
+Rate limit : **20 req/min par IP**
 
 ```json
 // Body
-{
-  "text": "Bonjour, comment allez-vous ?",
-  "src_lang": "francais",
-  "tgt_lang": "moore"
-}
+{ "text": "Bonjour, comment allez-vous ?", "src_lang": "francais", "tgt_lang": "moore" }
 
 // Réponse 200
-{
-  "translated_text": "Ne y welame ?",
-  "src_lang": "francais",
-  "tgt_lang": "moore",
-  "cached": false
-}
+{ "translated_text": "Ne y welame ?", "src_lang": "francais", "tgt_lang": "moore", "cached": false }
 ```
 
 ---
 
-### POST `/tts`
-
-Rate limit : 10 req/min par IP.
+### `POST /tts`
+Rate limit : **10 req/min par IP**
 
 ```json
 // Body
-{
-  "text": "Ne y welame",
-  "lang": "moore",
-  "speed": 1.0
-}
+{ "text": "Ne y welame", "lang": "moore", "speed": 1.0 }
 
 // Réponse 200
-{
-  "audio_b64": "UklGRiQ...",
-  "sample_rate": 16000,
-  "duration_seconds": 2.3,
-  "lang": "moore"
-}
+{ "audio_b64": "UklGRiQ...", "sample_rate": 16000, "duration_seconds": 2.3, "lang": "moore" }
 ```
 
-`speed` : `0.5` (lent) → `1.0` (normal) → `2.0` (rapide).
+`speed` : `0.5` (lent) → `1.0` (normal) → `2.0` (rapide)
 
 ---
 
-### POST `/translate-and-speak`
-
-Rate limit : 10 req/min par IP.
+### `POST /translate-and-speak`
+Rate limit : **10 req/min par IP**
 
 ```json
 // Body
-{
-  "text": "Bonjour tout le monde",
-  "src_lang": "francais",
-  "tgt_lang": "dioula",
-  "speed": 1.0
-}
+{ "text": "Bonjour tout le monde", "src_lang": "francais", "tgt_lang": "dioula", "speed": 1.0 }
 
 // Réponse 200
 {
   "original_text": "Bonjour tout le monde",
   "translated_text": "I ni ce",
-  "src_lang": "francais",
-  "tgt_lang": "dioula",
   "audio_b64": "UklGRiQ...",
   "sample_rate": 16000,
   "duration_seconds": 1.8,
@@ -292,18 +270,18 @@ Rate limit : 10 req/min par IP.
 | `400` | Langue non reconnue |
 | `403` | Clé API invalide ou manquante |
 | `422` | Corps invalide (champ manquant, valeur hors limites) |
-| `429` | Rate limit atteint |
+| `429` | Rate limit atteint — réessaie dans 1 minute |
 | `500` | Erreur interne du modèle |
-| `504` | Timeout inférence |
+| `504` | Timeout inférence — texte trop long |
 
 ---
 
 ## 📜 Historique
 
-L'historique conserve le texte uniquement — l'audio est régénéré à la demande via `/tts`.
+L'historique conserve le texte uniquement.
+L'audio est régénéré à la demande via `/tts` — jamais stocké.
 
-### POST `/history` — Créer une entrée (201)
-
+### `POST /history` → 201
 ```json
 {
   "user_id": "user_001",
@@ -315,29 +293,17 @@ L'historique conserve le texte uniquement — l'audio est régénéré à la dem
 }
 ```
 
-### GET `/history` — Liste paginée (200)
-
+### `GET /history` → 200
 ```
 GET /history?user_id=user_001&action_type=translate&lang=moore&limit=10&offset=0
 ```
+Filtres : `user_id`, `action_type` (`translate`/`tts`/`translate_and_speak`), `lang`, `limit`, `offset`
 
-```json
-{
-  "total": 42,
-  "limit": 10,
-  "offset": 0,
-  "items": [...]
-}
-```
+### `DELETE /history/{id}` → 204 / 404
 
-Filtres disponibles : `user_id`, `action_type`, `lang`, `limit`, `offset`.
-
-### DELETE `/history/{id}` — Supprimer une entrée (204 / 404)
-
-### DELETE `/history?user_id=xxx` — Vider l'historique d'un utilisateur (204)
+### `DELETE /history?user_id=xxx` → 204
 
 ### Migrations Alembic
-
 ```bash
 alembic upgrade head
 ```
@@ -347,9 +313,9 @@ alembic upgrade head
 ## 🧪 Tester avec Postman
 
 1. Importe `FasoConnect_API.postman_collection.json`
-2. Configure la variable `api_key` dans la collection
-3. Lance d'abord **Health Check**
-4. La Swagger UI est disponible sur `http://localhost:8000/docs`
+2. Configure la variable `{{api_key}}` dans la collection
+3. Lance **Health Check** en premier
+4. Swagger UI : `http://localhost:8000/docs`
 
 ---
 
@@ -357,46 +323,66 @@ alembic upgrade head
 
 Ouvre `audio_player.html` dans ton navigateur.
 
-Fonctionnalités :
-- Onglet **Synthèse** : synthétise un texte directement
-- Onglet **Traduire + Écouter** : pipeline complet en un clic
-- Onglet **Base64** : colle un `audio_b64` reçu depuis Postman
-- Onglet **Historique** : consulte, filtre et supprime l'historique
+| Onglet | Fonction |
+|---|---|
+| **Synthèse vocale** | Texte → audio direct |
+| **Traduire + Écouter** | Pipeline complet en un clic |
+| **Base64** | Colle un `audio_b64` reçu de Postman |
+| **Historique** | Consulte, filtre et supprime l'historique |
 
 ---
 
 ## 🎓 Fine-tuning
 
-Pour améliorer la qualité sur les langues locales, un pipeline de fine-tuning est disponible dans `training/`.
+### Pourquoi fine-tuner ?
 
-### Données d'entraînement recommandées
+NLLB-200 a été entraîné sur peu de données pour les langues burkinabè.
+Le fine-tuning améliore significativement la qualité sur `mos_Latn`, `dyu_Latn` et `fuv_Latn`.
 
-| Dataset | Usage | Volume |
-|---|---|---|
-| JW300 (OPUS) | Entraînement | ~100k phrases |
-| allenai/nllb | Entraînement | ~50k phrases |
-| Google SMOL | Entraînement | ~5k phrases |
-| NLLB-SEED | Entraînement | ~6k phrases |
-| FLORES+ dev | Validation | ~1k phrases |
-| FLORES-200 devtest | Évaluation finale | ~1k phrases |
+### Sources de données disponibles
+
+| Dataset | Langues | Volume | Accès |
+|---|---|---|---|
+| Google SMOL (`smolsent` + `smoldoc`) | mos, dyu, ff | ~10 000–20 000 | ✅ Public |
+| sawadogosalif/MooreFRCollections | mooré-français | variable | ✅ Public |
+| OLDI Seed (successeur NLLB-Seed) | fuv_Latn | ~6 000 | ✅ Public |
+| Bloom Library (sil-ai/bloom-lm) | mos, dyu, fuv | variable | ✅ Public |
+| facebook/flores dev | mos, dyu, fuv | ~997×3 | ✅ (après CGU) |
+| Archives RTB (radio) | mos, dyu, fuv | à collecter | 📧 Via demande |
+
+> **Note :** JW300 est définitivement retiré d'OPUS depuis 2021 (droits d'auteur).
 
 ### Lancer le fine-tuning
 
-```bash
-# Télécharger les corpus
+```powershell
+# Configuration du token HF
+.\fix_hf_token.ps1
+
+# Pipeline complet (sans transcription radio)
+.\run_finetuning.ps1 -SkipRadio
+
+# Ou étape par étape
 python collect/download_all_datasets.py
-
-# Transcrire les archives radio (optionnel)
-python collect/transcribe_radio.py
-
-# Lancer l'entraînement
+python collect/clean_corpus.py
+python training/evaluate_model.py --model facebook/nllb-200-distilled-600M
 python training/finetune_nllb.py
+python training/evaluate_model.py --compare
 ```
 
-Après fine-tuning, mettre à jour `MODEL_ID` dans `nllb_engine.py` :
+### Intégrer le modèle fine-tuné
 
+Dans `translation/nllb_engine.py` :
 ```python
+# Avant
+MODEL_ID = "facebook/nllb-200-distilled-600M"
+
+# Après fine-tuning
 MODEL_ID = "./models/nllb-burkina-v1"
+```
+
+Puis rebuild :
+```bash
+docker compose up --build -d
 ```
 
 ---
@@ -406,35 +392,41 @@ MODEL_ID = "./models/nllb-burkina-v1"
 ```
 fasoconnect/
 ├── api/
-│   └── main.py                  ← API principale (auth, rate limit, endpoints)
+│   └── main.py                    API FastAPI (auth, rate limit, endpoints)
 ├── translation/
-│   └── nllb_engine.py           ← Moteur NLLB-200
+│   └── nllb_engine.py             Moteur NLLB-200
 ├── tts/
-│   └── mms_engine.py            ← Moteur MMS-TTS
+│   └── mms_engine.py              Moteur MMS-TTS
 ├── history/
-│   ├── models.py                ← Modèle SQLModel HistoryEntry
-│   ├── database.py              ← Engine SQLite/PostgreSQL
-│   └── router.py                ← Endpoints /history
+│   ├── models.py                  Modèle SQLModel HistoryEntry
+│   ├── database.py                Engine SQLite/PostgreSQL
+│   └── router.py                  Endpoints /history
 ├── migrations/
 │   ├── alembic.ini
 │   ├── env.py
-│   └── versions/
-│       └── 001_create_history_table.py
+│   └── versions/001_create_history_table.py
 ├── collect/
-│   ├── download_all_datasets.py ← Téléchargement corpus
-│   └── transcribe_radio.py      ← Transcription Whisper
+│   ├── download_all_datasets.py   Corpus publics (v6)
+│   ├── clean_corpus.py            Nettoyage et déduplication
+│   ├── transcribe_radio.py        Transcription Whisper (archives RTB)
+│   └── download_opus_direct.py    Téléchargement OPUS direct (sans opustools)
 ├── training/
-│   └── finetune_nllb.py         ← Pipeline fine-tuning
+│   ├── config.py                  Hyperparamètres centralisés
+│   ├── finetune_nllb.py           Pipeline fine-tuning
+│   └── evaluate_model.py          BLEU/chrF/TER avant-après
 ├── tests/
-│   └── test_history.py          ← 25 tests (pytest)
-├── models/                      ← Modèles fine-tunés (non commités)
-├── data/                        ← Corpus (non commité)
-├── preload_models.py            ← Téléchargement au build Docker
-├── audio_player.html            ← Lecteur audio (4 onglets)
+│   └── test_history.py            25 tests pytest
+├── data/
+│   └── .gitkeep
+├── preload_models.py
+├── audio_player.html
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
-├── .env                         ← Secrets (non commité)
+├── requirements_finetuning.txt
+├── run_finetuning.ps1
+├── fix_hf_token.ps1
+├── .env
 ├── .env.example
 ├── .gitignore
 └── README.md
@@ -442,47 +434,86 @@ fasoconnect/
 
 ---
 
-## 📊 Performances
+## 📊 Performances (RTX 3060 Laptop — CUDA 13.3)
 
-| Config | Chargement | Traduction | TTS |
+| Configuration | Chargement modèle | Traduction | TTS |
 |---|---|---|---|
 | CPU seul | 3–5 min | 10–30 sec | 5–15 sec |
-| RTX 3060 CUDA | ~30 sec | < 1 sec | < 1 sec |
+| RTX 3060 (CUDA) | ~30 sec | < 1 sec | < 1 sec |
 
-Config testée : NLLB-200 600M · float16 · WSL2 10 Go RAM · RTX 3060 6 Go VRAM.
+**Configuration WSL2 recommandée :**
+```ini
+[wsl2]
+memory=10GB
+processors=8
+swap=4GB
+gpuSupport=true
+```
 
 ---
 
 ## 🔧 Dépannage
 
-**Docker ne démarre pas**
+### Docker ne démarre pas
 ```powershell
 wsl --shutdown
 taskkill /f /im "Docker Desktop.exe"
-# Relance Docker Desktop
+# Relance Docker Desktop depuis le menu Démarrer
 ```
 
-**`Child process died` au démarrage**
-RAM Docker insuffisante. Vérifie `~/.wslconfig` : `memory=10GB`.
+### `Child process died` au démarrage
+RAM Docker insuffisante. Vérifie `~/.wslconfig` : `memory=10GB`
 
-**`NllbTokenizer has no attribute lang_code_to_id`**
+### `NllbTokenizer has no attribute lang_code_to_id`
 Ancienne version de `transformers`. Le code utilise `convert_tokens_to_ids` — vérifie `nllb_engine.py`.
 
-**`Redis connection refused`**
+### `ModuleNotFoundError: No module named 'training'`
+Lance les scripts depuis la racine du projet, pas depuis un sous-dossier :
+```powershell
+# Correct
+cd C:\...\FasoConnect
+python collect/clean_corpus.py
+
+# Incorrect
+cd collect
+python clean_corpus.py
+```
+
+### `Redis connection refused`
 L'hôte Redis doit être `redis` (nom du service Docker), pas `localhost`.
 
-**GPU non détecté**
-```bash
+### GPU non détecté
+```powershell
 docker info | findstr nvidia
 # Doit afficher : Runtimes: nvidia runc
+
+# Si absent :
+wsl -d Ubuntu
 sudo nvidia-ctk runtime configure --runtime=docker
 ```
 
-**`failed to create temp dir` au build**
-Espace disque insuffisant : `docker system prune -a --volumes`.
+### `failed to create temp dir` au build Docker
+Espace disque insuffisant :
+```bash
+docker system prune -a --volumes
+```
 
-**Rate limit atteint (429)**
-Attends 1 minute ou augmente les limites dans `main.py` (endpoints `@limiter.limit`).
+### Rate limit atteint (429)
+Attends 1 minute ou augmente les limites dans `api/main.py` :
+```python
+@limiter.limit("50/minute")  # augmenter si besoin
+```
+
+### Fine-tuning — corpus vide
+```powershell
+# Vérifie l'état du corpus
+python -c "
+import pandas as pd
+df = pd.read_csv('data/processed/corpus_burkina_clean.csv')
+print('Total :', len(df))
+print(df.groupby('source').size())
+"
+```
 
 ---
 

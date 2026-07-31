@@ -1,23 +1,20 @@
-# training/config.py — Configuration centralisée du fine-tuning
+# training/config.py — VERSION FINALE
 """
-Tous les hyperparamètres en un seul endroit.
-Modifie ce fichier plutôt que finetune_nllb.py directement.
+Configuration centralisée du pipeline de fine-tuning.
+Toutes les constantes sont définies ici.
+Importé par finetune_nllb.py et evaluate_model.py.
 """
 from pathlib import Path
 
 # ── Modèle ────────────────────────────────────────────────────────────
 
-# Modèle de base à fine-tuner
-BASE_MODEL = "facebook/nllb-200-distilled-600M"
-
-# Dossier de sortie du modèle fine-tuné
-OUTPUT_DIR = "models/nllb-burkina-v1"
-
-# Dossier des checkpoints intermédiaires
+BASE_MODEL     = "facebook/nllb-200-distilled-600M"
+OUTPUT_DIR     = "models/nllb-burkina-v1"
 CHECKPOINT_DIR = "models/checkpoints"
 
 # ── Données ───────────────────────────────────────────────────────────
 
+# ✅ Pointe vers le corpus NETTOYÉ (produit par clean_corpus.py)
 CORPUS_FILE       = "data/processed/corpus_burkina_clean.csv"
 RADIO_CORPUS_FILE = "data/processed/corpus_burkina_radio.csv"
 LOG_DIR           = "logs/tensorboard"
@@ -37,8 +34,8 @@ PIVOT_LANGS = [
     ("anglais",  "eng", "eng_Latn"),
 ]
 
-# Mapping complet code interne → code NLLB
 LANG_CODES = {
+    # codes internes
     "moore":        "mos_Latn",
     "dioula":       "dyu_Latn",
     "fulfulde":     "fuv_Latn",
@@ -54,52 +51,59 @@ LANG_CODES = {
     "dga": "dga_Latn",
     "fra": "fra_Latn",
     "eng": "eng_Latn",
+    "ff":  "fuv_Latn",
 }
 
-# ── Hyperparamètres d'entraînement ────────────────────────────────────
+# ── Hyperparamètres ───────────────────────────────────────────────────
 
 TRAIN_EPOCHS          = 5
-BATCH_SIZE            = 8       # réduis à 4 si OOM sur GPU 6 Go
+BATCH_SIZE            = 8        # réduis à 4 si Out Of Memory
 EVAL_BATCH_SIZE       = 8
 LEARNING_RATE         = 5e-5
 WARMUP_STEPS          = 500
 WEIGHT_DECAY          = 0.01
 LR_SCHEDULER          = "cosine"
 EARLY_STOP_PATIENCE   = 2
-SAVE_TOTAL_LIMIT      = 2       # garde les N meilleurs checkpoints
+SAVE_TOTAL_LIMIT      = 2
 
 # ── Tokenisation ──────────────────────────────────────────────────────
 
 MAX_SOURCE_LENGTH = 256
 MAX_TARGET_LENGTH = 256
 
-# ── Nettoyage du corpus ───────────────────────────────────────────────
+# ── Nettoyage ─────────────────────────────────────────────────────────
 
-MIN_CHARS           = 5        # longueur minimale source et cible
-MAX_CHARS           = 1000     # longueur maximale
-MIN_LASER_SCORE     = 0.6      # filtre qualité allenai/nllb
-DEDUP               = True     # suppression des doublons
-INCLUDE_RADIO       = True     # inclure corpus radio si disponible
-EXCLUDE_NEEDS_REVIEW = True    # exclure paires radio non validées
+MIN_CHARS            = 5
+MAX_CHARS            = 1000
+DEDUP                = True
+INCLUDE_RADIO        = True
+EXCLUDE_NEEDS_REVIEW = True
+
+# Sources exclues de l'entraînement
+VALIDATION_SOURCES = {"flores_dev"}
+EXCLUDED_SOURCES   = {"bloom_mono"}
 
 # ── Évaluation ────────────────────────────────────────────────────────
 
-EVAL_DATASET   = "facebook/flores"    # dataset d'évaluation finale
-EVAL_SPLIT     = "devtest"            # split FLORES-200
-EVAL_LANG_PAIR = ("moore", "francais")  # paire à évaluer en priorité
+EVAL_DATASET   = "facebook/flores"
+EVAL_SPLIT     = "dev"
+EVAL_LANG_PAIR = ("moore", "francais")
 
-# ── Whisper (transcription radio) ─────────────────────────────────────
+# ── Whisper ───────────────────────────────────────────────────────────
 
-WHISPER_MODEL_SIZE = "large-v3"   # tiny | base | small | medium | large-v3
-WHISPER_BOOTSTRAP  = True         # traduit avec NLLB après transcription
+WHISPER_MODEL_SIZE = "large-v3"
+WHISPER_BOOTSTRAP  = True
 
-# ── Dossiers à créer automatiquement ─────────────────────────────────
+# ── Dossiers à créer ─────────────────────────────────────────────────
 
 REQUIRED_DIRS = [
-    "data/raw/audio",
+    "data/raw/audio/moore",
+    "data/raw/audio/dioula",
+    "data/raw/audio/fulfulde",
     "data/raw/opus",
     "data/raw/transcriptions",
     "data/processed",
     "models",
     "logs/tensorboard",
+    "logs/eval",
 ]
