@@ -68,8 +68,9 @@ def load_model(model_path: str):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_path,
-        torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+        dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
         low_cpu_mem_usage=True,
+        use_safetensors=True,
     ).to(DEVICE)
     model.eval()
     logger.info(f"✅ Modèle chargé sur {DEVICE}")
@@ -78,43 +79,64 @@ def load_model(model_path: str):
 
 # ── Chargement FLORES-200 ─────────────────────────────────────────────
 
+# def load_flores(src_lang: str, tgt_lang: str) -> list[dict]:
+#     """Charge le split devtest de FLORES-200 pour une paire de langues."""
+#     try:
+#         from datasets import load_dataset
+#     except ImportError:
+#         raise ImportError("pip install datasets")
+#
+#     src_nllb = LANG_CODES.get(src_lang, src_lang)
+#     tgt_nllb = LANG_CODES.get(tgt_lang, tgt_lang)
+#
+#     try:
+#         ds = load_dataset(
+#             "facebook/flores",
+#             # f"{src_nllb}-{tgt_nllb}",
+#             split="devtest",
+#             trust_remote_code=True,
+#         )
+#     except Exception:
+#         # Essaie l'ordre inverse
+#         ds = load_dataset(
+#             "facebook/flores",
+#             f"{tgt_nllb}-{src_nllb}",
+#             split="devtest",
+#             trust_remote_code=True,
+#         )
+#
+#     pairs = []
+#     for row in ds:
+#         trans = row.get("translation", {})
+#         src = trans.get(src_nllb, "").strip()
+#         tgt = trans.get(tgt_nllb, "").strip()
+#         if src and tgt:
+#             pairs.append({"src": src, "tgt": tgt})
+#
+#     logger.info(f"✅ FLORES-200 devtest {src_lang}→{tgt_lang} : {len(pairs)} phrases")
+#     return pairs
+
+
 def load_flores(src_lang: str, tgt_lang: str) -> list[dict]:
-    """Charge le split devtest de FLORES-200 pour une paire de langues."""
-    try:
-        from datasets import load_dataset
-    except ImportError:
-        raise ImportError("pip install datasets")
+    from datasets import load_dataset
 
     src_nllb = LANG_CODES.get(src_lang, src_lang)
     tgt_nllb = LANG_CODES.get(tgt_lang, tgt_lang)
 
-    try:
-        ds = load_dataset(
-            "facebook/flores",
-            f"{src_nllb}-{tgt_nllb}",
-            split="devtest",
-            trust_remote_code=True,
-        )
-    except Exception:
-        # Essaie l'ordre inverse
-        ds = load_dataset(
-            "facebook/flores",
-            f"{tgt_nllb}-{src_nllb}",
-            split="devtest",
-            trust_remote_code=True,
-        )
+    # Le dataset facebook/flores n'expose que des configs eng_Latn-XXX.
+    # On charge la config "all" qui contient toutes les langues en colonnes,
+    # puis on extrait nous-mêmes la paire src/tgt voulue.
+    ds = load_dataset("facebook/flores", "all", split="devtest")
 
     pairs = []
     for row in ds:
-        trans = row.get("translation", {})
-        src = trans.get(src_nllb, "").strip()
-        tgt = trans.get(tgt_nllb, "").strip()
+        src = row.get(f"sentence_{src_nllb}", "").strip()
+        tgt = row.get(f"sentence_{tgt_nllb}", "").strip()
         if src and tgt:
             pairs.append({"src": src, "tgt": tgt})
 
     logger.info(f"✅ FLORES-200 devtest {src_lang}→{tgt_lang} : {len(pairs)} phrases")
     return pairs
-
 
 # ── Traduction par lot ────────────────────────────────────────────────
 

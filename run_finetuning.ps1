@@ -229,7 +229,7 @@ if (-not $SkipEvalBase -and -not $CompareOnly) {
     Write-Step "7/8 - Evaluation du modele de BASE (reference)..."
     Write-Info "Score BLEU avant fine-tuning sur FLORES-200"
 
-    python -m training/evaluate_model.py --model facebook/nllb-200-distilled-600M
+    python -m training.evaluate_model --model facebook/nllb-200-distilled-600M
     if ($LASTEXITCODE -eq 0) {
         Write-OK "Scores de base sauvegardes dans logs\eval\"
     } else {

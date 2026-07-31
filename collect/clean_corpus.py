@@ -125,8 +125,8 @@ def filter_quality(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df[df["src"] != df["tgt"]]
     df = df[df["src"].str.count(r"\d") / df["src"].str.len().clip(lower=1) < 0.3]
-    df = df[df["src"].str.contains(r"[a-zA-ZÀ-ÿ]", regex=True, na=False)]
-    df = df[df["tgt"].str.contains(r"[a-zA-ZÀ-ÿ]", regex=True, na=False)]
+    df = df[df["src"].str.contains(r"[^\W\d_]", regex=True, na=False)] # r"[a-zA-ZÀ-ÿ]"
+    df = df[df["tgt"].str.contains(r"[^\W\d_]", regex=True, na=False)]
     code_pattern = r"[{}\[\]<>|\\=]|http[s]?://"
     df = df[~df["src"].str.contains(code_pattern, regex=True, na=False)]
     df = df[~df["tgt"].str.contains(code_pattern, regex=True, na=False)]
@@ -137,26 +137,6 @@ def filter_quality(df: pd.DataFrame) -> pd.DataFrame:
 
 # ── Étape 5 — Déduplication ───────────────────────────────────────────
 
-# def deduplicate(df: pd.DataFrame) -> pd.DataFrame:
-#     if not DEDUP:
-#         return df
-#     before = len(df)
-#
-#     df = df.drop_duplicates(subset=["src", "tgt"])
-#
-#     priority_order = ["flores_dev", "google_smol", "smol_sent", "smol_doc",
-#                       "nllb_mined", "nllb_seed", "bible_uedin", "bible_corpus",
-#                       "jw300", "opus100", "radio_rtb", "masakhane"]
-#
-#     df["_priority"] = df["source"].apply(
-#         lambda s: priority_order.index(s) if s in priority_order else 99
-#     )
-#     df = df.sort_values("_priority").drop_duplicates(subset=["src"], keep="first")
-#     df = df.drop(columns=["_priority"])
-#
-#     logger.info(f"✅ Déduplication : {before:,} → {len(df):,} ({before-len(df):,} doublons)")
-#     return df
-
 def deduplicate(df: pd.DataFrame) -> pd.DataFrame:
     if not DEDUP:
         return df
@@ -164,7 +144,7 @@ def deduplicate(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.drop_duplicates(subset=["src", "tgt"])
 
-    priority_order = ["flores_dev", "google_smol", "smol_sent", "smol_doc",
+    priority_order = ["flores_dev", "moorefr_collections", "oldi_seed", "google_smol", "smol_sent", "smol_doc",
                       "nllb_mined", "nllb_seed", "bible_uedin", "bible_corpus",
                       "jw300", "opus100", "radio_rtb", "masakhane"]
 

@@ -58,7 +58,7 @@ LANG_CODES = {
 }
 
 TRAIN_EPOCHS        = 5
-BATCH_SIZE          = 8
+BATCH_SIZE          = 4     # 8
 LEARNING_RATE       = 5e-5
 WARMUP_STEPS        = 500
 MAX_SOURCE_LENGTH   = 256
@@ -66,6 +66,7 @@ MAX_TARGET_LENGTH   = 256
 EARLY_STOP_PATIENCE = 2
 SAVE_TOTAL_LIMIT    = 2
 
+os.environ["TENSORBOARD_LOGGING_DIR"] = LOG_DIR
 # ── Auth HuggingFace ──────────────────────────────────────────────────
 
 def hf_login():
@@ -89,8 +90,9 @@ def load_model():
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
     model = AutoModelForSeq2SeqLM.from_pretrained(
         BASE_MODEL,
-        torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+        dtype=torch.float32,
         low_cpu_mem_usage=True,
+        use_safetensors=True,
     ).to(DEVICE)
 
     n_params = sum(p.numel() for p in model.parameters())
@@ -174,13 +176,13 @@ def make_tokenize_fn(tokenizer):
             padding="max_length",
         )
 
-        with tokenizer.as_target_tokenizer():
-            labels = tokenizer(
-                examples["tgt"],
-                max_length=MAX_TARGET_LENGTH,
-                truncation=True,
-                padding="max_length",
-            )
+        labels = tokenizer(
+            text_target=examples["tgt"],
+            max_length=MAX_TARGET_LENGTH,
+            truncation=True,
+            padding="max_length",
+        )
+
 
         # Remplace padding des labels par -100 (ignoré dans la loss)
         labels_ids = [
@@ -261,6 +263,9 @@ def train(tokenizer, model, tokenized_datasets):
         num_train_epochs=TRAIN_EPOCHS,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
+        gradient_accumulation_steps=2,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
 
         # Optimiseur
         learning_rate=LEARNING_RATE,
@@ -273,7 +278,7 @@ def train(tokenizer, model, tokenized_datasets):
         bf16=False,
 
         # Évaluation et sauvegarde
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=True,
         metric_for_best_model="bleu",
@@ -284,7 +289,7 @@ def train(tokenizer, model, tokenized_datasets):
         generation_max_length=MAX_TARGET_LENGTH,
 
         # Logs
-        logging_dir=LOG_DIR,
+        # logging_dir=LOG_DIR,
         logging_steps=50,
         report_to="tensorboard",
 
@@ -295,12 +300,13 @@ def train(tokenizer, model, tokenized_datasets):
         dataloader_num_workers=0,
     )
 
+
     trainer = Seq2SeqTrainer(
         model=model,
         args=training_args,
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["validation"],
-        tokenizer=tokenizer,
+        processing_class=tokenizer,  # au lieu de tokenizer=tokenizer
         data_collator=DataCollatorForSeq2Seq(
             tokenizer,
             model=model,
@@ -336,6 +342,7 @@ def train(tokenizer, model, tokenized_datasets):
 
 if __name__ == "__main__":
     hf_login()
+    torch.cuda.empty_cache()
 
     tokenizer, model   = load_model()
     df_train, df_valid = load_corpus()
