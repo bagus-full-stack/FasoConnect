@@ -83,20 +83,54 @@ def hf_login():
 
 # ── Chargement modèle ─────────────────────────────────────────────────
 
+# def load_model():
+#     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+#
+#     logger.info(f"Chargement {BASE_MODEL} sur {DEVICE}...")
+#     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
+#     model = AutoModelForSeq2SeqLM.from_pretrained(
+#         BASE_MODEL,
+#         dtype=torch.float32,
+#         low_cpu_mem_usage=True,
+#         use_safetensors=True,
+#     ).to(DEVICE)
+#
+#     n_params = sum(p.numel() for p in model.parameters())
+#     logger.info(f"Modèle chargé : {n_params:,} paramètres sur {DEVICE}")
+#     return tokenizer, model
+
 def load_model():
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+    from peft import get_peft_model, LoraConfig, TaskType
 
     logger.info(f"Chargement {BASE_MODEL} sur {DEVICE}...")
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
+
+    # 1. Charger en float16 pour économiser la RAM/VRAM
     model = AutoModelForSeq2SeqLM.from_pretrained(
         BASE_MODEL,
-        dtype=torch.float32,
+        torch_dtype=torch.float16,
         low_cpu_mem_usage=True,
         use_safetensors=True,
     ).to(DEVICE)
 
-    n_params = sum(p.numel() for p in model.parameters())
-    logger.info(f"Modèle chargé : {n_params:,} paramètres sur {DEVICE}")
+    # 2. Configuration LoRA
+    lora_config = LoraConfig(
+        r=16,
+        lora_alpha=32,
+        target_modules=["q_proj", "v_proj"],  # Cible l'attention
+        lora_dropout=0.05,
+        bias="none",
+        task_type=TaskType.SEQ_2_SEQ_LM
+    )
+
+    # 3. Application de LoRA au modèle
+    model = get_peft_model(model, lora_config)
+
+    # Affichera : "trainable params: ~4,000,000 || all params: 619,000,000 || trainable%: 0.6%"
+    model.print_trainable_parameters()
+
+    logger.info(f"Modèle préparé avec LoRA sur {DEVICE}")
     return tokenizer, model
 
 # ── Chargement corpus ─────────────────────────────────────────────────
@@ -173,14 +207,14 @@ def make_tokenize_fn(tokenizer):
             examples["src"],
             max_length=MAX_SOURCE_LENGTH,
             truncation=True,
-            padding="max_length",
+            # padding="max_length",
         )
 
         labels = tokenizer(
             text_target=examples["tgt"],
             max_length=MAX_TARGET_LENGTH,
             truncation=True,
-            padding="max_length",
+            # padding="max_length",
         )
 
 
@@ -224,19 +258,53 @@ def build_datasets(tokenizer, df_train, df_valid):
 
 # ── Métriques ─────────────────────────────────────────────────────────
 
+# def make_compute_metrics(tokenizer):
+#     import evaluate
+#     bleu = evaluate.load("sacrebleu")
+#
+#     def compute_metrics(eval_pred):
+#         predictions, labels = eval_pred
+#         decoded_preds  = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+#         labels[labels == -100] = tokenizer.pad_token_id
+#         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+#         decoded_labels = [[l] for l in decoded_labels]
+#         result = bleu.compute(predictions=decoded_preds, references=decoded_labels)
+#         return {
+#             "bleu":   round(result["score"], 2),
+#             "bleu_1": round(result["precisions"][0], 2),
+#             "bleu_2": round(result["precisions"][1], 2),
+#         }
+#
+#     return compute_metrics
+
+
 def make_compute_metrics(tokenizer):
     import evaluate
+    import numpy as np
     bleu = evaluate.load("sacrebleu")
 
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
-        decoded_preds  = tokenizer.batch_decode(predictions, skip_special_tokens=True)
-        labels[labels == -100] = tokenizer.pad_token_id
+
+        # Parfois, les prédictions sont retournées sous forme de tuple, on prend le premier élément
+        if isinstance(predictions, tuple):
+            predictions = predictions[0]
+
+        # 1. Remplacer les -100 par le pad_token_id dans les PRÉDICTIONS
+        predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
+        decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+
+        # 2. Remplacer les -100 par le pad_token_id dans les LABELS
+        labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+
+        # Format attendu par sacrebleu : liste de listes pour les références
         decoded_labels = [[l] for l in decoded_labels]
+
         result = bleu.compute(predictions=decoded_preds, references=decoded_labels)
+
         return {
-            "bleu":   round(result["score"], 2),
+            "bleu": round(result["score"], 2),
             "bleu_1": round(result["precisions"][0], 2),
             "bleu_2": round(result["precisions"][1], 2),
         }
