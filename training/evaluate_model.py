@@ -31,6 +31,9 @@ import pandas as pd
 from tqdm import tqdm
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 import evaluate
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from training.config import (
     BASE_MODEL,
@@ -63,59 +66,56 @@ ter_metric  = evaluate.load("ter")
 
 # ── Chargement modèle ─────────────────────────────────────────────────
 
+# def load_model(model_path: str):
+#     logger.info(f"Chargement modèle : {model_path}")
+#     tokenizer = AutoTokenizer.from_pretrained(model_path)
+#     model = AutoModelForSeq2SeqLM.from_pretrained(
+#         model_path,
+#         dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+#         low_cpu_mem_usage=True,
+#         use_safetensors=True,
+#     ).to(DEVICE)
+#     model.eval()
+#     logger.info(f"✅ Modèle chargé sur {DEVICE}")
+#     return tokenizer, model
+
+
 def load_model(model_path: str):
     logger.info(f"Chargement modèle : {model_path}")
+
+    # 1. On charge toujours le tokenizer (depuis le dossier ou le modèle de base)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSeq2SeqLM.from_pretrained(
-        model_path,
-        dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
-        low_cpu_mem_usage=True,
-        use_safetensors=True,
-    ).to(DEVICE)
+
+    # Vérifie si le dossier contient adapter_config.json (la preuve que c'est un modèle LoRA)
+    is_lora = Path(model_path).exists() and (Path(model_path) / "adapter_config.json").exists()
+
+    if is_lora:
+        from peft import PeftModel
+        logger.info("  Détection d'un modèle LoRA -> Chargement du modèle de base + fusion LoRA")
+        # On charge le modèle de base NLLB
+        base_model = AutoModelForSeq2SeqLM.from_pretrained(
+            "facebook/nllb-200-distilled-600M",
+            torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+            low_cpu_mem_usage=True,
+            use_safetensors=True,
+        ).to(DEVICE)
+
+        # On greffe les poids LoRA dessus
+        model = PeftModel.from_pretrained(base_model, model_path)
+    else:
+        # Chargement classique (pour le modèle de base par exemple)
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            model_path,
+            dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+            low_cpu_mem_usage=True,
+            use_safetensors=True,
+        ).to(DEVICE)
+
     model.eval()
     logger.info(f"✅ Modèle chargé sur {DEVICE}")
     return tokenizer, model
 
-
 # ── Chargement FLORES-200 ─────────────────────────────────────────────
-
-# def load_flores(src_lang: str, tgt_lang: str) -> list[dict]:
-#     """Charge le split devtest de FLORES-200 pour une paire de langues."""
-#     try:
-#         from datasets import load_dataset
-#     except ImportError:
-#         raise ImportError("pip install datasets")
-#
-#     src_nllb = LANG_CODES.get(src_lang, src_lang)
-#     tgt_nllb = LANG_CODES.get(tgt_lang, tgt_lang)
-#
-#     try:
-#         ds = load_dataset(
-#             "facebook/flores",
-#             # f"{src_nllb}-{tgt_nllb}",
-#             split="devtest",
-#             trust_remote_code=True,
-#         )
-#     except Exception:
-#         # Essaie l'ordre inverse
-#         ds = load_dataset(
-#             "facebook/flores",
-#             f"{tgt_nllb}-{src_nllb}",
-#             split="devtest",
-#             trust_remote_code=True,
-#         )
-#
-#     pairs = []
-#     for row in ds:
-#         trans = row.get("translation", {})
-#         src = trans.get(src_nllb, "").strip()
-#         tgt = trans.get(tgt_nllb, "").strip()
-#         if src and tgt:
-#             pairs.append({"src": src, "tgt": tgt})
-#
-#     logger.info(f"✅ FLORES-200 devtest {src_lang}→{tgt_lang} : {len(pairs)} phrases")
-#     return pairs
-
 
 def load_flores(src_lang: str, tgt_lang: str) -> list[dict]:
     from datasets import load_dataset

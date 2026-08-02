@@ -83,22 +83,6 @@ def hf_login():
 
 # ── Chargement modèle ─────────────────────────────────────────────────
 
-# def load_model():
-#     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-#
-#     logger.info(f"Chargement {BASE_MODEL} sur {DEVICE}...")
-#     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
-#     model = AutoModelForSeq2SeqLM.from_pretrained(
-#         BASE_MODEL,
-#         dtype=torch.float32,
-#         low_cpu_mem_usage=True,
-#         use_safetensors=True,
-#     ).to(DEVICE)
-#
-#     n_params = sum(p.numel() for p in model.parameters())
-#     logger.info(f"Modèle chargé : {n_params:,} paramètres sur {DEVICE}")
-#     return tokenizer, model
-
 def load_model():
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
     from peft import get_peft_model, LoraConfig, TaskType
@@ -197,37 +181,77 @@ def load_corpus():
 
 # ── Tokenisation ──────────────────────────────────────────────────────
 
+# def make_tokenize_fn(tokenizer):
+#     def tokenize(examples):
+#         src_lang = examples["src_lang"][0] if "src_lang" in examples else "anglais"
+#         src_code = LANG_CODES.get(src_lang, "eng_Latn")
+#         tokenizer.src_lang = src_code
+#
+#         inputs = tokenizer(
+#             examples["src"],
+#             max_length=MAX_SOURCE_LENGTH,
+#             truncation=True,
+#             # padding="max_length",
+#         )
+#
+#         labels = tokenizer(
+#             text_target=examples["tgt"],
+#             max_length=MAX_TARGET_LENGTH,
+#             truncation=True,
+#             # padding="max_length",
+#         )
+#
+#
+#         # Remplace padding des labels par -100 (ignoré dans la loss)
+#         labels_ids = [
+#             [(l if l != tokenizer.pad_token_id else -100) for l in label]
+#             for label in labels["input_ids"]
+#         ]
+#         inputs["labels"] = labels_ids
+#         return inputs
+#
+#     return tokenize
+
 def make_tokenize_fn(tokenizer):
     def tokenize(examples):
-        src_lang = examples["src_lang"][0] if "src_lang" in examples else "anglais"
-        src_code = LANG_CODES.get(src_lang, "eng_Latn")
-        tokenizer.src_lang = src_code
+        input_ids = []
+        attention_masks = []
+        labels = []
 
-        inputs = tokenizer(
-            examples["src"],
-            max_length=MAX_SOURCE_LENGTH,
-            truncation=True,
-            # padding="max_length",
-        )
+        # On s'assure d'avoir les listes de langues (fallback si la colonne n'existe pas)
+        src_langs = examples.get("src_lang", ["moore"] * len(examples["src"]))
+        tgt_langs = examples.get("tgt_lang", ["francais"] * len(examples["tgt"]))
 
-        labels = tokenizer(
-            text_target=examples["tgt"],
-            max_length=MAX_TARGET_LENGTH,
-            truncation=True,
-            # padding="max_length",
-        )
+        for i in range(len(examples["src"])):
+            # 1. On configure le tokenizer avec les VRAIES langues de CETTE phrase
+            tokenizer.src_lang = LANG_CODES.get(src_langs[i], "mos_Latn")
+            tokenizer.tgt_lang = LANG_CODES.get(tgt_langs[i], "fra_Latn")
 
+            # 2. Tokenisation de la phrase source
+            inp = tokenizer(
+                examples["src"][i],
+                max_length=MAX_SOURCE_LENGTH,
+                truncation=True
+            )
 
-        # Remplace padding des labels par -100 (ignoré dans la loss)
-        labels_ids = [
-            [(l if l != tokenizer.pad_token_id else -100) for l in label]
-            for label in labels["input_ids"]
-        ]
-        inputs["labels"] = labels_ids
-        return inputs
+            # 3. Tokenisation de la traduction (qui inclura désormais le bon token de langue cible)
+            lab = tokenizer(
+                text_target=examples["tgt"][i],
+                max_length=MAX_TARGET_LENGTH,
+                truncation=True
+            )
+
+            input_ids.append(inp["input_ids"])
+            attention_masks.append(inp["attention_mask"])
+            labels.append(lab["input_ids"])
+
+        return {
+            "input_ids": input_ids,
+            "attention_mask": attention_masks,
+            "labels": labels
+        }
 
     return tokenize
-
 
 def build_datasets(tokenizer, df_train, df_valid):
     from datasets import Dataset, DatasetDict
