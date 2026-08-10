@@ -226,37 +226,6 @@ def load_corpus():
 
 # ── Tokenisation ──────────────────────────────────────────────────────
 
-# def make_tokenize_fn(tokenizer):
-#     def tokenize(examples):
-#         src_lang = examples["src_lang"][0] if "src_lang" in examples else "anglais"
-#         src_code = LANG_CODES.get(src_lang, "eng_Latn")
-#         tokenizer.src_lang = src_code
-#
-#         inputs = tokenizer(
-#             examples["src"],
-#             max_length=MAX_SOURCE_LENGTH,
-#             truncation=True,
-#             # padding="max_length",
-#         )
-#
-#         labels = tokenizer(
-#             text_target=examples["tgt"],
-#             max_length=MAX_TARGET_LENGTH,
-#             truncation=True,
-#             # padding="max_length",
-#         )
-#
-#
-#         # Remplace padding des labels par -100 (ignoré dans la loss)
-#         labels_ids = [
-#             [(l if l != tokenizer.pad_token_id else -100) for l in label]
-#             for label in labels["input_ids"]
-#         ]
-#         inputs["labels"] = labels_ids
-#         return inputs
-#
-#     return tokenize
-
 def make_tokenize_fn(tokenizer):
     def tokenize(examples):
         input_ids = []
@@ -326,26 +295,6 @@ def build_datasets(tokenizer, df_train, df_valid):
     return tokenized
 
 # ── Métriques ─────────────────────────────────────────────────────────
-
-# def make_compute_metrics(tokenizer):
-#     import evaluate
-#     bleu = evaluate.load("sacrebleu")
-#
-#     def compute_metrics(eval_pred):
-#         predictions, labels = eval_pred
-#         decoded_preds  = tokenizer.batch_decode(predictions, skip_special_tokens=True)
-#         labels[labels == -100] = tokenizer.pad_token_id
-#         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-#         decoded_labels = [[l] for l in decoded_labels]
-#         result = bleu.compute(predictions=decoded_preds, references=decoded_labels)
-#         return {
-#             "bleu":   round(result["score"], 2),
-#             "bleu_1": round(result["precisions"][0], 2),
-#             "bleu_2": round(result["precisions"][1], 2),
-#         }
-#
-#     return compute_metrics
-
 
 def make_compute_metrics(tokenizer):
     import evaluate
