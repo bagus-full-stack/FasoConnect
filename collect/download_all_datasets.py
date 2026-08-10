@@ -1,28 +1,25 @@
-# collect/download_all_datasets.py — VERSION 6
+# collect/download_all_datasets.py — VERSION 12 (Corrections de clés et d'URL)
 """
-Sources confirmées disponibles pour mos/dyu/fuv :
-  ✅ Google SMOL (smolsent + smoldoc) — champs src/trg
-  ✅ sawadogosalif/MooreFRCollections — mooré-français spécifique
-  ✅ sil-ai/bloom-lm — Bloom Library 363 langues
-  ✅ openlanguagedata/oldi_seed — NLLB-Seed successeur (fuv_Latn)
-  ✅ facebook/flores — validation uniquement
-  ✅ allenai/MADLAD-400 — corpus web massif (monolingual bootstrap)
+Script de collecte de données modulaire.
+Corrections :
+ - ARPRIM : utilise les clés 'f' (Français) et 'p' (Pulaar/Fulfulde).
+ - Suppression du dataset DS4H-ICTU (supprimé de HuggingFace).
+ - Stabilisation de Djelia et RobotsMali via load_dataset direct.
 """
 
 import os
 import logging
 from pathlib import Path
-
 import pandas as pd
 from tqdm import tqdm
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-# ── Auth HF ───────────────────────────────────────────────────────────
+RAW_DIR = Path("data/raw")
+PROCESSED_DIR = Path("data/processed")
+for d in [RAW_DIR, PROCESSED_DIR]: d.mkdir(parents=True, exist_ok=True)
+
 
 def hf_login():
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
@@ -34,392 +31,397 @@ def hf_login():
         except Exception as e:
             logger.warning(f"⚠️  Login HF : {e}")
 
+
 hf_login()
 
-RAW_DIR       = Path("data/raw")
-PROCESSED_DIR = Path("data/processed")
-for d in [RAW_DIR, PROCESSED_DIR]:
-    d.mkdir(parents=True, exist_ok=True)
 
-BURKINA_LANGS = [
-    ("moore",    "mos", "mos_Latn"),
-    ("dioula",   "dyu", "dyu_Latn"),
-    ("fulfulde", "fuv", "fuv_Latn"),
-]
-
-
-# ── Source 1 : Google SMOL sentences ─────────────────────────────────
-
+# ── 1. Google SMOL Sentences ──────────────────────────────────────────
 def download_smol_sent() -> list[dict]:
-    """Confirmé ✅ — champs src/trg"""
     try:
         from datasets import load_dataset
     except ImportError:
         return []
-
-    pairs = []
-    configs = {
-        "moore":    "smolsent__en_mos",
-        "dioula":   "smolsent__en_dyu",
-        "fulfulde": "smolsent__en_ff",
-    }
-    for lang_name, config in configs.items():
+    pairs, configs = [], {"moore": "smolsent__en_mos", "dioula": "smolsent__en_dyu", "fulfulde": "smolsent__en_ff"}
+    for lang, config in configs.items():
         try:
-            logger.info(f"  SMOL sent : {config}...")
             ds = load_dataset("google/smol", config, split="train")
-            count = 0
-            for row in tqdm(ds, desc=f"    {lang_name}", leave=False):
-                src = row.get("src", "").strip()
-                tgt = row.get("trg", "").strip()
-                if src and tgt and len(src) > 5 and len(tgt) > 5:
-                    pairs.append({"src": src, "tgt": tgt,
-                                  "src_lang": "anglais", "tgt_lang": lang_name,
-                                  "source": "smol_sent"})
-                    count += 1
-            logger.info(f"  ✅ smolsent {lang_name} : {count:,} paires")
-        except Exception as e:
-            logger.warning(f"  ⚠️  smolsent {config} : {e}")
+            for row in tqdm(ds, desc=f"    {lang}", leave=False):
+                src, tgt = str(row.get("src", "")).strip(), str(row.get("trg", "")).strip()
+                if src and tgt and src != "None" and len(src) > 5 and len(tgt) > 5:
+                    pairs.append(
+                        {"src": src, "tgt": tgt, "src_lang": "anglais", "tgt_lang": lang, "source": "smol_sent"})
+        except Exception:
+            pass
     return pairs
 
 
-# ── Source 2 : Google SMOL documents ─────────────────────────────────
-
+# ── 2. Google SMOL Documents ──────────────────────────────────────────
 def download_smol_doc() -> list[dict]:
     try:
         from datasets import load_dataset
     except ImportError:
         return []
-
-    pairs = []
-    configs = {
-        "moore": "smoldoc__en_mos",
-        "dioula": "smoldoc__en_dyu",
-        "fulfulde": "smoldoc__en_ff",
-    }
-    for lang_name, config in configs.items():
+    pairs, configs = [], {"moore": "smoldoc__en_mos", "dioula": "smoldoc__en_dyu", "fulfulde": "smoldoc__en_ff"}
+    for lang, config in configs.items():
         try:
-            logger.info(f"  SMOL doc : {config}...")
             ds = load_dataset("google/smol", config, split="train")
-            count = 0
-
-            for row in tqdm(ds, desc=f"    {lang_name}", leave=False):
-                # 🛠️ CORRECTION : Utilisation de 'srcs' et 'trgs' (listes de phrases)
-                srcs = row.get("srcs", [])
-                trgs = row.get("trgs", [])
-
-                # Sécurité : vérifier que les listes existent et sont alignées
-                if not srcs or not trgs or len(srcs) != len(trgs):
-                    continue
-
-                # Extraction phrase par phrase pour maximiser les paires d'entraînement
-                for s, t in zip(srcs, trgs):
-                    s = str(s).strip()
-                    t = str(t).strip()
-
-                    if s and t and len(s) > 5 and len(t) > 5:
-                        pairs.append({
-                            "src": s,
-                            "tgt": t,
-                            "src_lang": "anglais",
-                            "tgt_lang": lang_name,
-                            "source": "smol_doc"
-                        })
-                        count += 1
-
-            logger.info(f"  ✅ smoldoc {lang_name} : {count:,} paires extraites")
-        except Exception as e:
-            logger.warning(f"  ⚠️  smoldoc {config} : {e}")
-
+            for row in tqdm(ds, desc=f"    {lang}", leave=False):
+                srcs, trgs = row.get("srcs", []), row.get("trgs", [])
+                if srcs and trgs and len(srcs) == len(trgs):
+                    for s, t in zip(srcs, trgs):
+                        s, t = str(s).strip(), str(t).strip()
+                        if s and t and s != "None" and len(s) > 5 and len(t) > 5:
+                            pairs.append(
+                                {"src": s, "tgt": t, "src_lang": "anglais", "tgt_lang": lang, "source": "smol_doc"})
+        except Exception:
+            pass
     return pairs
 
 
-# ── Source 3 : sawadogosalif/MooreFRCollections ───────────────────────
-
+# ── 3. MooreFRCollections (Mooré) ─────────────────────────────────────
 def download_moorefr() -> list[dict]:
-    """
-    Dataset bilingue Mooré-Français créé spécifiquement pour le Burkina.
-    Découvert sur HuggingFace : sawadogosalif/MooreFRCollections
-    """
     try:
         from datasets import load_dataset
     except ImportError:
         return []
-
     pairs = []
     try:
-        logger.info("  MooreFRCollections...")
+        logger.info("  Téléchargement sawadogosalif/MooreFRCollections...")
         ds = load_dataset("sawadogosalif/MooreFRCollections", split="train")
-
-        count = 0
-        # Inspecte la première ligne pour trouver les champs
-        first = next(iter(ds))
-        logger.info(f"  Champs disponibles : {list(first.keys())}")
-
-        ds2 = load_dataset("sawadogosalif/MooreFRCollections", split="train")
-        for row in tqdm(ds2, desc="    moorefr", leave=False):
-            # Adapte selon les vrais champs trouvés
-            src = (row.get("french") or row.get("fra") or
-                   row.get("source") or row.get("fr") or "").strip()
-            tgt = (row.get("moore") or row.get("mos") or
-                   row.get("target") or row.get("mooré") or "").strip()
-
-            if not src or not tgt:
-                # Essaie l'ordre inverse
-                src, tgt = tgt, src
-
-            if src and tgt and len(src) > 5 and len(tgt) > 5:
-                pairs.append({"src": src, "tgt": tgt,
-                              "src_lang": "francais", "tgt_lang": "moore",
-                              "source": "moorefr_collections"})
-                count += 1
-
-        logger.info(f"  ✅ MooreFRCollections : {count:,} paires")
-    except Exception as e:
-        logger.warning(f"  ⚠️  MooreFRCollections : {e}")
+        for row in tqdm(ds, desc="    moorefr", leave=False):
+            src, tgt = str(row.get("french", "")).strip(), str(row.get("moore", "")).strip()
+            if src and tgt and src != "None" and len(src) > 5 and len(tgt) > 5:
+                pairs.append({"src": src, "tgt": tgt, "src_lang": "francais", "tgt_lang": "moore", "source": "moorefr"})
+    except Exception:
+        pass
     return pairs
 
 
-# ── Source 4 : Bloom Library (sil-ai/bloom-lm) ───────────────────────
-
-# def download_bloom_library() -> list[dict]:
-#     try:
-#         from datasets import load_dataset, get_dataset_config_names
-#     except ImportError:
-#         return []
-#
-#     pairs = []
-#
-#     # On autorise le script distant pour contourner le blocage de sécurité
-#     try:
-#         configs = get_dataset_config_names("sil-ai/bloom-lm", trust_remote_code=True)
-#         logger.info(f"  Bloom Library : {len(configs)} configs disponibles détectées")
-#     except Exception as e:
-#         logger.warning(f"  ⚠️  Bloom Library configs : {e}")
-#         return []
-#
-#     # Mapping avec les variantes découvertes dans la liste officielle
-#     bloom_targets = {
-#         "moore": ["mos"],
-#         "dioula": ["dyu"],
-#         "fulfulde": ["fuv", "fuh", "fub"],  # On ajoute les variantes nigériennes et adamawa !
-#     }
-#
-#     for lang_name, codes in bloom_targets.items():
-#         # Cherche si l'un de nos codes correspond à une config Bloom
-#         matching = [c for c in configs if any(code in c.lower() for code in codes)]
-#
-#         if not matching:
-#             logger.info(f"  Bloom Library : {lang_name} introuvable.")
-#             continue
-#
-#         for config in matching:
-#             try:
-#                 logger.info(f"  Bloom Library : Extraction de la variante {config}...")
-#
-#                 # Autorisation du script distant lors du téléchargement
-#                 ds = load_dataset("sil-ai/bloom-lm", config, split="train", trust_remote_code=True)
-#
-#                 count = 0
-#                 for row in tqdm(ds, desc=f"    bloom {config}", leave=False):
-#                     text = row.get("text", "").strip()
-#                     if text and len(text) > 10:
-#                         pairs.append({
-#                             "src": text,
-#                             "tgt": "",
-#                             "src_lang": lang_name,
-#                             "tgt_lang": "",
-#                             "source": f"bloom_mono_{config}"
-#                         })
-#                         count += 1
-#
-#                 logger.info(f"  ✅ Bloom {config} : {count:,} textes (monolingue)")
-#             except Exception as e:
-#                 logger.warning(f"  ⚠️  Bloom {config} : {str(e)[:80]}")
-#
-#     return pairs
-
-
-# ── Source 5 : openlanguagedata/oldi_seed (successeur NLLB-Seed: CORRIGÉ avec ID matching) ─────
-
+# ── 4. OLDI Seed (NLLB-Seed) ──────────────────────────────────────────
 def download_oldi_seed() -> list[dict]:
-    """
-    OLDI Seed — Les traductions sont liées par le champ 'id' entre différentes configs.
-    Couvre fuv_Latn (fulfulde).
-    """
     try:
         from datasets import load_dataset, get_dataset_config_names
     except ImportError:
         return []
+    pairs, eng_dict = [], {}
+    try:
+        configs = get_dataset_config_names("openlanguagedata/oldi_seed")
+    except Exception:
+        return []
+    try:
+        ds_eng = load_dataset("openlanguagedata/oldi_seed", "eng_Latn", split="train")
+        for row in ds_eng: eng_dict[row.get("id")] = row.get("text", "").strip()
+    except Exception:
+        return []
+    targets = {"moore": ["mos"], "dioula": ["dyu"], "fulfulde": ["fuv"]}
+    for lang, codes in targets.items():
+        conf = next((c for c in configs if any(code in c for code in codes)), None)
+        if not conf: continue
+        try:
+            ds2 = load_dataset("openlanguagedata/oldi_seed", conf, split="train")
+            for row in ds2:
+                tgt, src = row.get("text", "").strip(), eng_dict.get(row.get("id"), "")
+                if src and tgt and src != "None" and len(src) > 5 and len(tgt) > 5:
+                    pairs.append(
+                        {"src": src, "tgt": tgt, "src_lang": "anglais", "tgt_lang": lang, "source": "oldi_seed"})
+        except Exception:
+            pass
+    return pairs
 
+
+# ── 5. UVCI Koumankan (Dioula) ────────────────────────────────────────
+def download_uvci_dyu() -> list[dict]:
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        return []
+    pairs = []
+    try:
+        logger.info("  Téléchargement uvci/Koumankan_mt_dyu_fr...")
+        ds = load_dataset("uvci/Koumankan_mt_dyu_fr", split="train")
+        for row in tqdm(ds, desc="    uvci", leave=False):
+            d = row.get("translation") if "translation" in row else row
+            src, tgt = str(d.get("fr", "")).strip(), str(d.get("dyu", "")).strip()
+            if src and tgt and src != "None" and len(src) > 5 and len(tgt) > 5:
+                pairs.append(
+                    {"src": src, "tgt": tgt, "src_lang": "francais", "tgt_lang": "dioula", "source": "hf_uvci"})
+    except Exception as e:
+        logger.warning(f"  ⚠️  UVCI : {e}")
+    return pairs
+
+
+# ── 6. Djelia Bambara (converti Dioula) ───────────────────────────────
+def download_djelia_bm() -> list[dict]:
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        return []
+    pairs = []
+    try:
+        logger.info("  Téléchargement djelia/bambara-mt-dataset...")
+        # On force la lecture par défaut sans script distant
+        ds = load_dataset("djelia/bambara-mt-dataset", split="train")
+        for row in tqdm(ds, desc="    djelia", leave=False):
+            sl, tl = str(row.get("source_lang", "")), str(row.get("target_lang", ""))
+            st, tt = str(row.get("source_text", "")).strip(), str(row.get("target_text", "")).strip()
+
+            # On prend tout ce qui relie Bam <-> Fra, et on taggue le Bam comme "dioula"
+            if "fra" in sl and "bam" in tl:
+                if st and tt and st != "None" and len(st) > 5 and len(tt) > 5:
+                    pairs.append(
+                        {"src": st, "tgt": tt, "src_lang": "francais", "tgt_lang": "dioula", "source": "hf_djelia"})
+            elif "bam" in sl and "fra" in tl:
+                if st and tt and st != "None" and len(st) > 5 and len(tt) > 5:
+                    pairs.append(
+                        {"src": tt, "tgt": st, "src_lang": "francais", "tgt_lang": "dioula", "source": "hf_djelia"})
+    except Exception as e:
+        logger.warning(f"  ⚠️  Djelia : {e}")
+    return pairs
+
+
+# ── 7. RobotsMali Bambara (Bambara -> Dyu) ───────────────────────────
+
+def download_robotsmali_bm() -> list[dict]:
+    """
+    load_dataset("RobotsMaliAI/bayelemabaga", ...) échoue systématiquement
+    avec "Dataset scripts are no longer supported" — les versions récentes
+    de la lib `datasets` bloquent TOUT dataset qui utilise un script de
+    chargement (.py), quel que soit le config/split demandé. Aucun
+    paramètre de load_dataset() ne contourne ça.
+
+    Solution : télécharger directement l'archive tar.gz publiée par
+    RobotsMali (la même source que celle utilisée par leur propre script
+    HF) et parser les fichiers texte alignés nous-mêmes, sans passer par
+    la lib `datasets`.
+
+    Structure de l'archive (confirmée via bayelemabaga.py) :
+      bayelemabaga/train/train.bam, train.fr
+      bayelemabaga/valid/dev.bam,   dev.fr
+      bayelemabaga/test/test.bam,   test.fr
+    """
+    import io
+    import tarfile
+    import requests
+
+    ARCHIVE_URL = "https://raw.githubusercontent.com/RobotsMali-AI/datasets/master/bayelemabaga.tar.gz"
     pairs = []
 
     try:
-        configs = get_dataset_config_names("openlanguagedata/oldi_seed")
-    except Exception as e:
-        logger.warning(f"  ⚠️  OLDI Seed configs : {e}")
-        return []
+        logger.info("  Téléchargement direct de l'archive bayelemabaga...")
+        resp = requests.get(ARCHIVE_URL, timeout=60)
+        resp.raise_for_status()
 
-    # 1. Étape cruciale : Charger l'anglais comme dictionnaire de référence
-    eng_dict = {}
-    try:
-        logger.info("  OLDI Seed : Téléchargement de l'anglais (eng_Latn) pour le matching ID...")
-        ds_eng = load_dataset("openlanguagedata/oldi_seed", "eng_Latn", split="train")
-        for row in ds_eng:
-            # On stocke { id: phrase_en_anglais }
-            if "id" in row and "text" in row:
-                eng_dict[row["id"]] = row["text"].strip()
-        logger.info(f"  ✅ Dictionnaire anglais prêt : {len(eng_dict):,} phrases de référence")
-    except Exception as e:
-        logger.warning(f"  ⚠️  OLDI Seed (eng_Latn) échoué : {str(e)[:80]}")
-        return []  # On arrête si on n'a pas l'anglais pour faire les paires
+        # Le fichier s'appelle .tar.gz mais n'est pas toujours réellement
+        # compressé en gzip (constaté : contenu tar brut sous ce nom).
+        # "r:*" laisse tarfile auto-détecter gzip / bzip2 / xz / aucun.
+        with tarfile.open(fileobj=io.BytesIO(resp.content), mode="r:*") as tar:
+            members = {m.name: m for m in tar.getmembers()}
 
-    # 2. Chercher nos langues cibles
-    targets = {
-        "moore": ["mos_Latn", "mos-Latn", "mos"],
-        "dioula": ["dyu_Latn", "dyu-Latn", "dyu"],
-        "fulfulde": ["fuv_Latn", "fuv-Latn", "fuv"],
-    }
+            def lire(nom_partiel):
+                match = next((n for n in members if n.endswith(nom_partiel)), None)
+                if not match:
+                    return None
+                f = tar.extractfile(members[match])
+                return f.read().decode("utf-8").strip().split("\n") if f else None
 
-    for lang_name, codes in targets.items():
-        config_found = next((c for c in configs if any(code in c for code in codes)), None)
-        if not config_found:
-            continue  # Passe au suivant si la langue n'est pas dans le dataset
-
-        try:
-            logger.info(f"  OLDI Seed : Match avec {config_found}...")
-            ds2 = load_dataset("openlanguagedata/oldi_seed", config_found, split="train")
+            splits = [
+                ("train/train.bam", "train/train.fr"),
+                ("valid/dev.bam", "valid/dev.fr"),
+                ("test/test.bam", "test/test.fr"),
+            ]
 
             count = 0
-            for row in ds2:
-                row_id = row.get("id")
-                tgt = row.get("text", "").strip()
+            for bam_path, fr_path in splits:
+                bam_lines = lire(bam_path)
+                fr_lines = lire(fr_path)
+                if not bam_lines or not fr_lines:
+                    logger.warning(f"  ⚠️  Fichiers introuvables : {bam_path} / {fr_path}")
+                    continue
+                for bam, fr in zip(bam_lines, fr_lines):
+                    bam, fr = bam.strip(), fr.strip()
+                    if bam and fr and len(bam) > 1 and len(fr) > 1:
+                        pairs.append({"src": fr, "tgt": bam,
+                                      "src_lang": "francais", "tgt_lang": "bambara",
+                                      "source": "hf_robotsmali"})
+                        count += 1
 
-                # 3. La magie opère : on récupère l'anglais grâce à l'ID !
-                src = eng_dict.get(row_id, "")
-
-                if src and tgt and len(src) > 5 and len(tgt) > 5:
-                    pairs.append({
-                        "src": src,
-                        "tgt": tgt,
-                        "src_lang": "anglais",
-                        "tgt_lang": lang_name,
-                        "source": "oldi_seed"
-                    })
-                    count += 1
-
-            logger.info(f"  ✅ OLDI Seed {lang_name} : {count:,} paires trouvées par ID")
-        except Exception as e:
-            logger.warning(f"  ⚠️  OLDI Seed {config_found} : {str(e)[:80]}")
+        logger.info(f"  ✅ Extrait : {count:,} paires (bambara — proche du dioula)")
+    except requests.RequestException as e:
+        logger.warning(f"  ⚠️  Échec téléchargement archive : {e}")
+    except Exception as e:
+        logger.warning(f"  ⚠️  bayelemabaga (archive) : {e}")
 
     return pairs
 
-# ── Source 6 : facebook/flores dev (validation) ───────────────────────
 
+# ── 8. ARPRIM Pulaar (Fulfulde) ───────────────────────────────────────
+def download_arprim_fuv() -> list[dict]:
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        return []
+    pairs = []
+    try:
+        logger.info("  Téléchargement ARPRIM/pulaar_fulfulde...")
+        ds = load_dataset("ARPRIM/pulaar_fulfulde", split="train")
+        for row in tqdm(ds, desc="    arprim", leave=False):
+            # CORRECTION : Utilisation des clés 'f' (français) et 'p' (pulaar) basées sur vos logs
+            src, tgt = str(row.get("f", "")).strip(), str(row.get("p", "")).strip()
+            if src and tgt and src != "None" and len(src) > 5 and len(tgt) > 5:
+                pairs.append(
+                    {"src": src, "tgt": tgt, "src_lang": "francais", "tgt_lang": "fulfulde", "source": "hf_arprim"})
+    except Exception as e:
+        logger.warning(f"  ⚠️  ARPRIM : {e}")
+    return pairs
+
+
+# ── 9. FLORES Dev (Validation) ────────────────────────────────────────
 def download_flores_validation() -> list[dict]:
-    """Confirmé ✅ — 997 phrases par langue"""
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        return []
+    pairs, flores_langs = [], {"moore": "mos_Latn", "dioula": "dyu_Latn", "fulfulde": "fuv_Latn"}
+    try:
+        ds_fra = load_dataset("facebook/flores", "fra_Latn", split="dev")
+        fra_txt = [r.get("sentence", "").strip() for r in ds_fra]
+    except Exception:
+        return []
+    for lang, nllb_code in flores_langs.items():
+        try:
+            ds = load_dataset("facebook/flores", nllb_code, split="dev")
+            for i, row in enumerate(ds):
+                src, tgt = row.get("sentence", "").strip(), fra_txt[i] if i < len(fra_txt) else ""
+                if src and tgt and src != "None":
+                    pairs.append(
+                        {"src": src, "tgt": tgt, "src_lang": lang, "tgt_lang": "francais", "source": "flores_dev"})
+        except Exception:
+            pass
+    return pairs
+
+
+# ── 10. TICO-19 Santé (Fulfulde) ──────────────────────────────────────
+# def download_tico19_fuv() -> list[dict]:
+#     try:
+#         from datasets import load_dataset
+#     except ImportError:
+#         return []
+#
+#     pairs = []
+#     logger.info("  Téléchargement atepeq/tico19 (Santé / Fulfulde)...")
+#
+#     try:
+#         # Chargement du dataset Parquet natif sans script Python défectueux
+#         ds = load_dataset("atepeq/tico19", split="train")
+#
+#         for row in tqdm(ds, desc="    tico19", leave=False):
+#             d = row.get("translation") if "translation" in row else row
+#
+#             # Extraction des clés Anglais (en) et Fulfulde (fuv)
+#             src = str(d.get("en") or d.get("source") or "").strip()
+#             tgt = str(d.get("fuv") or d.get("target") or "").strip()
+#
+#             if src and tgt and src != "None" and len(src) > 5 and len(tgt) > 5:
+#                 pairs.append({
+#                     "src": src,
+#                     "tgt": tgt,
+#                     "src_lang": "anglais",
+#                     "tgt_lang": "fulfulde",
+#                     "source": "hf_tico19"
+#                 })
+#
+#         logger.info(f"  ✅ {len(pairs):,} paires médicales/santé récupérées")
+#     except Exception as e:
+#         logger.warning(f"  ⚠️  Erreur TICO-19 : {e}")
+#
+#     return pairs
+
+def download_tico19_fuv() -> list[dict]:
     try:
         from datasets import load_dataset
     except ImportError:
         return []
 
     pairs = []
-    flores_langs = {
-        "moore":    "mos_Latn",
-        "dioula":   "dyu_Latn",
-        "fulfulde": "fuv_Latn",
-    }
+    logger.info("  Téléchargement atepeq/tico19 (Santé / Fulfulde)...")
 
     try:
-        ds_fra  = load_dataset("facebook/flores", "fra_Latn", split="dev")
-        fra_txt = [r.get("sentence", "").strip() for r in ds_fra]
-    except Exception as e:
-        logger.warning(f"  ⚠️  FLORES français : {str(e)[:80]}")
-        return []
+        # On charge directement le split "en_fuv"
+        ds = load_dataset("atepeq/tico19", split="en_fuv")
 
-    for lang_name, lang_nllb in flores_langs.items():
-        try:
-            ds = load_dataset("facebook/flores", lang_nllb, split="dev")
-            count = 0
-            for i, row in enumerate(ds):
-                src = row.get("sentence", "").strip()
-                tgt = fra_txt[i] if i < len(fra_txt) else ""
-                if src and tgt:
-                    pairs.append({"src": src, "tgt": tgt,
-                                  "src_lang": lang_name, "tgt_lang": "francais",
-                                  "source": "flores_dev"})
-                    count += 1
-            logger.info(f"  ✅ FLORES dev {lang_name} : {count:,} phrases")
-        except Exception as e:
-            logger.warning(f"  ⚠️  FLORES {lang_name} : {str(e)[:80]}")
+        for row in tqdm(ds, desc="    tico19", leave=False):
+            # D'après la documentation exacte du dataset :
+            src = str(row.get("source", "")).strip()
+            tgt = str(row.get("translation", "")).strip()
+
+            if src and tgt and src != "None" and len(src) > 5 and len(tgt) > 5:
+                pairs.append({
+                    "src": src,
+                    "tgt": tgt,
+                    "src_lang": "anglais",
+                    "tgt_lang": "fulfulde",
+                    "source": "hf_tico19"
+                })
+
+        logger.info(f"  ✅ {len(pairs):,} paires médicales/santé récupérées")
+    except Exception as e:
+        logger.warning(f"  ⚠️  Erreur TICO-19 : {e}")
 
     return pairs
 
 
-# ── Consolidation ─────────────────────────────────────────────────────
-
+# ── CONSOLIDATION GLOBALE ─────────────────────────────────────────────
 def build_corpus():
     all_pairs = []
 
     sources = [
-        ("1/6 — Google SMOL sentences ✅",        download_smol_sent),
-        ("2/6 — Google SMOL documents ✅",         download_smol_doc),
-        ("3/6 — MooreFRCollections (mooré-fra)",   download_moorefr),
-        ("4/6 — Bloom Library (sil-ai)",           None), # download_bloom_library
-        ("5/6 — OLDI Seed (successeur NLLB-Seed)", download_oldi_seed),
-        ("6/6 — facebook/flores dev (validation)", download_flores_validation),
+        ("1/9 — Google SMOL Sentences", download_smol_sent),
+        ("2/9 — Google SMOL Documents", download_smol_doc),
+        ("3/9 — MooreFRCollections", download_moorefr),
+        ("4/9 — OLDI Seed (NLLB-Seed)", download_oldi_seed),
+        ("5/9 — UVCI Koumankan (Dioula)", download_uvci_dyu),
+        ("6/9 — Djelia (Bambara -> Dioula)", download_djelia_bm),
+        ("7/9 — RobotsMali (Bambara -> Dyu)", download_robotsmali_bm),
+        ("8/9 — ARPRIM (Fulfulde / Pulaar)", download_arprim_fuv),
+        ("9/9 — facebook/flores (Validation)", download_flores_validation),
+        ("10/10 — TICO-19 Santé (Fulfulde)", download_tico19_fuv),
     ]
 
     for label, fn in sources:
-        logger.info(f"\n{'='*55}")
-        logger.info(label)
-        logger.info("="*55)
+        logger.info(f"\n{'=' * 55}\n{label}\n{'=' * 55}")
         try:
             result = fn()
             all_pairs.extend(result)
-            logger.info(f"  Sous-total : {len(all_pairs):,} paires cumulées")
+            logger.info(f"  ✅ Extrait : {len(result):,} paires (Sous-total : {len(all_pairs):,})")
         except Exception as e:
-            logger.error(f"  Source ignorée : {e}")
-
-    if not all_pairs:
-        logger.error("❌ Aucune paire collectée")
-        return
+            logger.error(f"  ❌ Source ignorée : {e}")
 
     df = pd.DataFrame(all_pairs)
-    df = df.dropna(subset=["src"])
-    df["src"] = df["src"].str.strip()
-    df["tgt"] = df["tgt"].fillna("").str.strip()
+    if len(df) == 0:
+        logger.error("Aucune paire collectée ! Fin du script.")
+        return
 
-    # Sépare bilingues et monolingues
-    df_bilingual = df[df["tgt"].str.len() > 5].copy()
+    df = df.dropna(subset=["src", "tgt"])
+    df["src"] = df["src"].str.strip()
+    df["tgt"] = df["tgt"].str.strip()
+
+    df_bilingual = df[(df["src"].str.len() > 5) & (df["tgt"].str.len() > 5)].copy()
     df_bilingual = df_bilingual.drop_duplicates(subset=["src", "tgt"])
 
     output_file = PROCESSED_DIR / "corpus_burkina.csv"
     df_bilingual.to_csv(output_file, index=False, encoding="utf-8")
 
-    # Sauvegarde aussi les données monolingues (utiles pour évaluation)
-    df_mono = df[df["tgt"].str.len() == 0].copy()
-    if len(df_mono) > 0:
-        mono_file = PROCESSED_DIR / "corpus_burkina_mono.csv"
-        df_mono.to_csv(mono_file, index=False, encoding="utf-8")
-        logger.info(f"\n💾 Corpus monolingue : {len(df_mono):,} textes → {mono_file}")
-
     train_df = df_bilingual[df_bilingual["source"] != "flores_dev"]
-    valid_df  = df_bilingual[df_bilingual["source"] == "flores_dev"]
+    valid_df = df_bilingual[df_bilingual["source"] == "flores_dev"]
 
-    logger.info(f"\n{'='*55}")
-    logger.info("📊 RAPPORT FINAL")
-    logger.info("="*55)
-    logger.info(f"Bilingue total    : {len(df_bilingual):,} paires")
+    logger.info(f"\n{'=' * 55}\n📊 RAPPORT FINAL\n{'=' * 55}")
+    logger.info(f"Bilingue total    : {len(df_bilingual):,} paires sauvegardées dans {output_file}")
     logger.info(f"  Entraînement    : {len(train_df):,}")
     logger.info(f"  Validation      : {len(valid_df):,} (FLORES dev)")
-    logger.info(f"Fichier           : {output_file}")
 
     if len(train_df) > 0:
-        logger.info("\nRépartition par langue :")
-        logger.info(train_df.groupby("src_lang").size().to_string())
-        logger.info("\nRépartition par source :")
+        logger.info("\nRépartition par source (dataset) :")
         logger.info(df_bilingual.groupby("source").size().to_string())
-    logger.info("="*55)
 
 
 if __name__ == "__main__":
