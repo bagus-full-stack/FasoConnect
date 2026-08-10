@@ -21,6 +21,7 @@ import sys
 import logging
 import time
 from pathlib import Path
+import unicodedata
 
 import torch
 import pandas as pd
@@ -59,11 +60,11 @@ LANG_CODES = {
 
 TRAIN_EPOCHS        = 5
 BATCH_SIZE          = 4     # 8
-LEARNING_RATE       = 5e-5
+LEARNING_RATE       = 2e-5  # Au lieu de 5e-5
 WARMUP_STEPS        = 500
 MAX_SOURCE_LENGTH   = 256
 MAX_TARGET_LENGTH   = 256
-EARLY_STOP_PATIENCE = 2
+EARLY_STOP_PATIENCE = 5
 SAVE_TOTAL_LIMIT    = 2
 
 os.environ["TENSORBOARD_LOGGING_DIR"] = LOG_DIR
@@ -119,6 +120,21 @@ def load_model():
 
 # ── Chargement corpus ─────────────────────────────────────────────────
 
+def remove_accents_and_special_chars(text: str) -> str:
+    if not isinstance(text, str): return ""
+    text_no_accents = "".join(
+        c for c in unicodedata.normalize("NFD", text)
+        if unicodedata.category(c) != "Mn"
+    )
+    replacements = {
+        'ɛ': 'e', 'Ɛ': 'E', 'ɔ': 'o', 'Ɔ': 'O', 'ɓ': 'b', 'Ɓ': 'B',
+        'ɗ': 'd', 'Ɗ': 'D', 'ŋ': 'n', 'Ŋ': 'N', 'ɲ': 'ny', 'Ɲ': 'Ny',
+        'ʋ': 'v', 'Ʋ': 'V', 'ƴ': 'y', 'Ƴ': 'Y'
+    }
+    for special, standard in replacements.items():
+        text_no_accents = text_no_accents.replace(special, standard)
+    return text_no_accents
+
 def load_corpus():
     if not Path(CORPUS_FILE).exists():
         logger.error(
@@ -169,6 +185,35 @@ def load_corpus():
         df_train = df_shuffled[:split_idx]
 
     logger.info(f"Entraînement : {len(df_train):,} | Validation : {len(df_valid):,}")
+
+    # 1. SWAPPING (Bidirectionnel)
+    logger.info("Inversion des paires (Apprentissage bidirectionnel)...")
+    df_inverse = df_train.copy()
+    df_inverse = df_inverse.rename(columns={"src": "tgt", "tgt": "src", "src_lang": "tgt_lang", "tgt_lang": "src_lang"})
+    df_train = pd.concat([df_train, df_inverse], ignore_index=True)
+
+    # 2. BRUIT (Robustesse - 15% des données)
+    logger.info("Injection de bruit (tolérance aux fautes de frappe)...")
+    df_noise = df_train.sample(frac=0.15, random_state=42).copy()
+    df_noise["src"] = df_noise["src"].apply(remove_accents_and_special_chars)
+    original_src = df_train.loc[df_noise.index, "src"]
+    df_noise = df_noise[df_noise["src"] != original_src]
+    df_train = pd.concat([df_train, df_noise], ignore_index=True)
+
+    # 3. OVERSAMPLING (Équilibrage)
+    logger.info("Oversampling des langues minoritaires...")
+    MIN_SAMPLES = 15000
+    balanced_dfs = []
+    for lang, group in df_train.groupby("tgt_lang"):
+        count = len(group)
+        if count < MIN_SAMPLES:
+            balanced_group = group.sample(n=MIN_SAMPLES, replace=True, random_state=42)
+            balanced_dfs.append(balanced_group)
+        else:
+            balanced_dfs.append(group)
+
+    df_train = pd.concat(balanced_dfs, ignore_index=True)
+    df_train = df_train.sample(frac=1, random_state=42).reset_index(drop=True)
 
     if len(df_train) < 500:
         logger.warning(
@@ -362,7 +407,7 @@ def train(tokenizer, model, tokenized_datasets):
         # Optimiseur
         learning_rate=LEARNING_RATE,
         warmup_steps=WARMUP_STEPS,
-        weight_decay=0.01,
+        weight_decay=0.05,  # Au lieu de 0.01
         lr_scheduler_type="cosine",
 
         # Précision
@@ -370,8 +415,10 @@ def train(tokenizer, model, tokenized_datasets):
         bf16=False,
 
         # Évaluation et sauvegarde
-        eval_strategy="epoch",
-        save_strategy="epoch",
+        eval_strategy="steps",
+        eval_steps=1000,    # Évalue le modèle tous les 1000 batchs
+        save_strategy="steps",
+        save_steps=1000,    # Sauvegarde un checkpoint en même temps
         load_best_model_at_end=True,
         metric_for_best_model="bleu",
         greater_is_better=True,
