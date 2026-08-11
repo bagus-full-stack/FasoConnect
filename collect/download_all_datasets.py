@@ -181,6 +181,81 @@ def download_djelia_bm() -> list[dict]:
 
 # ── 7. RobotsMali Bambara (Bambara -> Dyu) ───────────────────────────
 
+# def download_robotsmali_bm() -> list[dict]:
+#     """
+#     load_dataset("RobotsMaliAI/bayelemabaga", ...) échoue systématiquement
+#     avec "Dataset scripts are no longer supported" — les versions récentes
+#     de la lib `datasets` bloquent TOUT dataset qui utilise un script de
+#     chargement (.py), quel que soit le config/split demandé. Aucun
+#     paramètre de load_dataset() ne contourne ça.
+#
+#     Solution : télécharger directement l'archive tar.gz publiée par
+#     RobotsMali (la même source que celle utilisée par leur propre script
+#     HF) et parser les fichiers texte alignés nous-mêmes, sans passer par
+#     la lib `datasets`.
+#
+#     Structure de l'archive (confirmée via bayelemabaga.py) :
+#       bayelemabaga/train/train.bam, train.fr
+#       bayelemabaga/valid/dev.bam,   dev.fr
+#       bayelemabaga/test/test.bam,   test.fr
+#     """
+#     import io
+#     import tarfile
+#     import requests
+#
+#     ARCHIVE_URL = "https://raw.githubusercontent.com/RobotsMali-AI/datasets/master/bayelemabaga.tar.gz"
+#     pairs = []
+#
+#     try:
+#         logger.info("  Téléchargement direct de l'archive bayelemabaga...")
+#         resp = requests.get(ARCHIVE_URL, timeout=60)
+#         resp.raise_for_status()
+#
+#         # Le fichier s'appelle .tar.gz mais n'est pas toujours réellement
+#         # compressé en gzip (constaté : contenu tar brut sous ce nom).
+#         # "r:*" laisse tarfile auto-détecter gzip / bzip2 / xz / aucun.
+#         with tarfile.open(fileobj=io.BytesIO(resp.content), mode="r:*") as tar:
+#             members = {m.name: m for m in tar.getmembers()}
+#
+#             def lire(nom_partiel):
+#                 match = next((n for n in members if n.endswith(nom_partiel)), None)
+#                 if not match:
+#                     return None
+#                 f = tar.extractfile(members[match])
+#                 return f.read().decode("utf-8").strip().split("\n") if f else None
+#
+#             splits = [
+#                 ("train/train.bam", "train/train.fr"),
+#                 ("valid/dev.bam", "valid/dev.fr"),
+#                 ("test/test.bam", "test/test.fr"),
+#             ]
+#
+#             count = 0
+#             for bam_path, fr_path in splits:
+#                 bam_lines = lire(bam_path)
+#                 fr_lines = lire(fr_path)
+#                 if not bam_lines or not fr_lines:
+#                     logger.warning(f"  ⚠️  Fichiers introuvables : {bam_path} / {fr_path}")
+#                     continue
+#                 for bam, fr in zip(bam_lines, fr_lines):
+#                     bam, fr = bam.strip(), fr.strip()
+#                     if bam and fr and len(bam) > 1 and len(fr) > 1:
+#                         pairs.append({"src": fr, "tgt": bam,
+#                                       "src_lang": "francais", "tgt_lang": "bambara",
+#                                       "source": "hf_robotsmali"})
+#                         count += 1
+#
+#         logger.info(f"  ✅ Extrait : {count:,} paires (bambara — proche du dioula)")
+#     except requests.RequestException as e:
+#         logger.warning(f"  ⚠️  Échec téléchargement archive : {e}")
+#     except Exception as e:
+#         logger.warning(f"  ⚠️  bayelemabaga (archive) : {e}")
+#
+#     return pairs
+
+
+# ── 7. RobotsMali Bambara (Bambara -> Dyu) ───────────────────────────
+
 def download_robotsmali_bm() -> list[dict]:
     """
     load_dataset("RobotsMaliAI/bayelemabaga", ...) échoue systématiquement
@@ -198,6 +273,17 @@ def download_robotsmali_bm() -> list[dict]:
       bayelemabaga/train/train.bam, train.fr
       bayelemabaga/valid/dev.bam,   dev.fr
       bayelemabaga/test/test.bam,   test.fr
+
+    ✅ CORRIGÉ : tgt_lang="bambara" -> "dioula". "bambara" n'existe pas
+    dans LANG_CODES (training/finetune_nllb.py) — sans ce renommage, ces
+    ~44k paires tombaient sur les valeurs par défaut de LANG_CODES.get()
+    au moment de la tokenisation (mos_Latn / fra_Latn), ce qui corrompait
+    silencieusement le signal d'entraînement. Le bambara est une langue
+    mandingue proche du dioula (mutuellement assez intelligible à l'oral)
+    mais reste une variété distincte — ce renommage est un compromis de
+    volume de données, pas une équivalence linguistique exacte. Voir la
+    discussion précédente si vous voulez plutôt sous-échantillonner cette
+    source pour limiter son poids face au vrai dioula (UVCI Koumankan).
     """
     import io
     import tarfile
@@ -241,18 +327,17 @@ def download_robotsmali_bm() -> list[dict]:
                     bam, fr = bam.strip(), fr.strip()
                     if bam and fr and len(bam) > 1 and len(fr) > 1:
                         pairs.append({"src": fr, "tgt": bam,
-                                      "src_lang": "francais", "tgt_lang": "bambara",
+                                      "src_lang": "francais", "tgt_lang": "dioula",  # ✅ CORRIGÉ (était "bambara")
                                       "source": "hf_robotsmali"})
                         count += 1
 
-        logger.info(f"  ✅ Extrait : {count:,} paires (bambara — proche du dioula)")
+        logger.info(f"  ✅ Extrait : {count:,} paires (bambara -> tagué dioula, proche du dioula)")
     except requests.RequestException as e:
         logger.warning(f"  ⚠️  Échec téléchargement archive : {e}")
     except Exception as e:
         logger.warning(f"  ⚠️  bayelemabaga (archive) : {e}")
 
     return pairs
-
 
 # ── 8. ARPRIM Pulaar (Fulfulde) ───────────────────────────────────────
 def download_arprim_fuv() -> list[dict]:

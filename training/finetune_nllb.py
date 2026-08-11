@@ -58,14 +58,15 @@ LANG_CODES = {
     "ff":  "fuv_Latn",
 }
 
-TRAIN_EPOCHS        = 5
-BATCH_SIZE          = 4     # 8
-LEARNING_RATE       = 2e-5  # Au lieu de 5e-5
-WARMUP_STEPS        = 500
-MAX_SOURCE_LENGTH   = 256
-MAX_TARGET_LENGTH   = 256
-EARLY_STOP_PATIENCE = 5 # Au lieu de 2
-SAVE_TOTAL_LIMIT    = 2
+TRAIN_EPOCHS            = 5
+BATCH_SIZE              = 4     # 8
+GRADIENT_ACCUMULATION   = 8  # 2
+LEARNING_RATE           = 3e-4  # Au lieu de 5e-5
+WARMUP_STEPS            = 500
+MAX_SOURCE_LENGTH       = 256
+MAX_TARGET_LENGTH       = 256
+EARLY_STOP_PATIENCE     = 3 # Au lieu de 2
+SAVE_TOTAL_LIMIT        = 2
 
 os.environ["TENSORBOARD_LOGGING_DIR"] = LOG_DIR
 # ── Auth HuggingFace ──────────────────────────────────────────────────
@@ -103,7 +104,7 @@ def load_model():
     lora_config = LoraConfig(
         r=16,
         lora_alpha=32,
-        target_modules=["q_proj", "v_proj"],  # Cible l'attention
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "fc1", "fc2"],  # Cible l'attention
         lora_dropout=0.05,
         bias="none",
         task_type=TaskType.SEQ_2_SEQ_LM
@@ -114,6 +115,10 @@ def load_model():
 
     # Affichera : "trainable params: ~4,000,000 || all params: 619,000,000 || trainable%: 0.6%"
     model.print_trainable_parameters()
+
+    fra_token_id = tokenizer.convert_tokens_to_ids("fra_Latn")
+    model.generation_config.forced_bos_token_id = fra_token_id
+    logger.info(f"forced_bos_token_id fixé sur fra_Latn (id={fra_token_id}) pour l'éval")
 
     logger.info(f"Modèle préparé avec LoRA sur {DEVICE}")
     return tokenizer, model
@@ -135,6 +140,96 @@ def remove_accents_and_special_chars(text: str) -> str:
         text_no_accents = text_no_accents.replace(special, standard)
     return text_no_accents
 
+# def load_corpus():
+#     if not Path(CORPUS_FILE).exists():
+#         logger.error(
+#             f"Corpus nettoyé introuvable : {CORPUS_FILE}\n"
+#             "Lance d'abord : python collect/clean_corpus.py"
+#         )
+#         sys.exit(1)
+#
+#     df = pd.read_csv(CORPUS_FILE, encoding="utf-8")
+#     logger.info(f"Corpus brut chargé : {len(df):,} lignes")
+#
+#     # Nettoyage défensif
+#     df = df.dropna(subset=["src", "tgt"])
+#     df["src"] = df["src"].astype(str).str.strip()
+#     df["tgt"] = df["tgt"].astype(str).str.strip()
+#     df = df[df["src"].str.len() > 5]
+#     df = df[df["tgt"].str.len() > 5]
+#
+#     # Exclut les données monolingues (bloom_mono)
+#     if "source" in df.columns:
+#         df = df[df["source"] != "bloom_mono"]
+#
+#     if len(df) == 0:
+#         logger.error(
+#             "Corpus vide après filtrage.\n"
+#             "Vérifie que download_all_datasets.py a bien téléchargé des données."
+#         )
+#         sys.exit(1)
+#
+#     # Split : flores_dev → validation, reste → entraînement
+#     if "source" in df.columns:
+#         df_valid = df[df["source"] == "flores_dev"].copy()
+#         df_train = df[df["source"] != "flores_dev"].copy()
+#     else:
+#         df_shuffled = df.sample(frac=1, random_state=42)
+#         split_idx   = int(len(df_shuffled) * 0.9)
+#         df_train    = df_shuffled[:split_idx]
+#         df_valid    = df_shuffled[split_idx:]
+#
+#     # Si pas assez de validation → split 90/10
+#     if len(df_valid) < 100 and len(df_train) > 200:
+#         logger.warning("Peu de données de validation — split 90/10")
+#         df_shuffled = df_train.sample(frac=1, random_state=42)
+#         split_idx   = int(len(df_shuffled) * 0.9)
+#         df_valid    = pd.concat(
+#             [df_valid, df_shuffled[split_idx:]], ignore_index=True
+#         )
+#         df_train = df_shuffled[:split_idx]
+#
+#     logger.info(f"Entraînement : {len(df_train):,} | Validation : {len(df_valid):,}")
+#
+#     # 1. SWAPPING (Bidirectionnel)
+#     logger.info("Inversion des paires (Apprentissage bidirectionnel)...")
+#     df_inverse = df_train.copy()
+#     df_inverse = df_inverse.rename(columns={"src": "tgt", "tgt": "src", "src_lang": "tgt_lang", "tgt_lang": "src_lang"})
+#     df_train = pd.concat([df_train, df_inverse], ignore_index=True)
+#
+#     # 2. BRUIT (Robustesse - 15% des données)
+#     logger.info("Injection de bruit (tolérance aux fautes de frappe)...")
+#     df_noise = df_train.sample(frac=0.15, random_state=42).copy()
+#     df_noise["src"] = df_noise["src"].apply(remove_accents_and_special_chars)
+#     original_src = df_train.loc[df_noise.index, "src"]
+#     df_noise = df_noise[df_noise["src"] != original_src]
+#     df_train = pd.concat([df_train, df_noise], ignore_index=True)
+#
+#     # 3. OVERSAMPLING (Équilibrage)
+#     logger.info("Oversampling des langues minoritaires...")
+#     MIN_SAMPLES = 15000
+#     balanced_dfs = []
+#     for lang, group in df_train.groupby("tgt_lang"):
+#         count = len(group)
+#         if count < MIN_SAMPLES:
+#             balanced_group = group.sample(n=MIN_SAMPLES, replace=True, random_state=42)
+#             balanced_dfs.append(balanced_group)
+#         else:
+#             balanced_dfs.append(group)
+#
+#     df_train = pd.concat(balanced_dfs, ignore_index=True)
+#     df_train = df_train.sample(frac=1, random_state=42).reset_index(drop=True)
+#
+#     if len(df_train) < 500:
+#         logger.warning(
+#             f"Corpus d'entraînement très petit ({len(df_train)} paires).\n"
+#             "   Le fine-tuning risque de ne pas converger.\n"
+#             "   Enrichis le corpus puis relance."
+#         )
+#
+#     return df_train, df_valid
+
+
 def load_corpus():
     if not Path(CORPUS_FILE).exists():
         logger.error(
@@ -146,6 +241,15 @@ def load_corpus():
     df = pd.read_csv(CORPUS_FILE, encoding="utf-8")
     logger.info(f"Corpus brut chargé : {len(df):,} lignes")
 
+    # 🛑 SÉCURITÉ ANTI-DATA LEAKAGE 🛑
+    if "source" not in df.columns:
+        logger.error(
+            "ERREUR CRITIQUE : La colonne 'source' a disparu du corpus ! "
+            "Ton script clean_corpus.py a dû la supprimer. "
+            "Elle est indispensable pour isoler FLORES de l'entraînement."
+        )
+        sys.exit(1)
+
     # Nettoyage défensif
     df = df.dropna(subset=["src", "tgt"])
     df["src"] = df["src"].astype(str).str.strip()
@@ -153,38 +257,11 @@ def load_corpus():
     df = df[df["src"].str.len() > 5]
     df = df[df["tgt"].str.len() > 5]
 
-    # Exclut les données monolingues (bloom_mono)
-    if "source" in df.columns:
-        df = df[df["source"] != "bloom_mono"]
+    # Split propre garanti (pas de df_shuffled hasardeux ici !)
+    df_valid = df[df["source"] == "flores_dev"].copy()
+    df_train = df[df["source"] != "flores_dev"].copy()
 
-    if len(df) == 0:
-        logger.error(
-            "Corpus vide après filtrage.\n"
-            "Vérifie que download_all_datasets.py a bien téléchargé des données."
-        )
-        sys.exit(1)
-
-    # Split : flores_dev → validation, reste → entraînement
-    if "source" in df.columns:
-        df_valid = df[df["source"] == "flores_dev"].copy()
-        df_train = df[df["source"] != "flores_dev"].copy()
-    else:
-        df_shuffled = df.sample(frac=1, random_state=42)
-        split_idx   = int(len(df_shuffled) * 0.9)
-        df_train    = df_shuffled[:split_idx]
-        df_valid    = df_shuffled[split_idx:]
-
-    # Si pas assez de validation → split 90/10
-    if len(df_valid) < 100 and len(df_train) > 200:
-        logger.warning("Peu de données de validation — split 90/10")
-        df_shuffled = df_train.sample(frac=1, random_state=42)
-        split_idx   = int(len(df_shuffled) * 0.9)
-        df_valid    = pd.concat(
-            [df_valid, df_shuffled[split_idx:]], ignore_index=True
-        )
-        df_train = df_shuffled[:split_idx]
-
-    logger.info(f"Entraînement : {len(df_train):,} | Validation : {len(df_valid):,}")
+    logger.info(f"Entraînement propre : {len(df_train):,} | Validation pure (FLORES) : {len(df_valid):,}")
 
     # 1. SWAPPING (Bidirectionnel)
     logger.info("Inversion des paires (Apprentissage bidirectionnel)...")
@@ -200,9 +277,9 @@ def load_corpus():
     df_noise = df_noise[df_noise["src"] != original_src]
     df_train = pd.concat([df_train, df_noise], ignore_index=True)
 
-    # 3. OVERSAMPLING (Équilibrage)
+    # 3. OVERSAMPLING (Équilibrage à 15000 min)
     logger.info("Oversampling des langues minoritaires...")
-    MIN_SAMPLES = 15000
+    MIN_SAMPLES = 6000  # 15000
     balanced_dfs = []
     for lang, group in df_train.groupby("tgt_lang"):
         count = len(group)
@@ -214,13 +291,6 @@ def load_corpus():
 
     df_train = pd.concat(balanced_dfs, ignore_index=True)
     df_train = df_train.sample(frac=1, random_state=42).reset_index(drop=True)
-
-    if len(df_train) < 500:
-        logger.warning(
-            f"Corpus d'entraînement très petit ({len(df_train)} paires).\n"
-            "   Le fine-tuning risque de ne pas converger.\n"
-            "   Enrichis le corpus puis relance."
-        )
 
     return df_train, df_valid
 
@@ -349,7 +419,7 @@ def train(tokenizer, model, tokenized_datasets):
         num_train_epochs=TRAIN_EPOCHS,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
-        gradient_accumulation_steps=2,
+        gradient_accumulation_steps=GRADIENT_ACCUMULATION,  # 2
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
 
@@ -365,9 +435,9 @@ def train(tokenizer, model, tokenized_datasets):
 
         # Évaluation et sauvegarde
         eval_strategy="steps",
-        eval_steps=1000,    # Évalue le modèle tous les 1000 batchs
+        eval_steps=250,    # Évalue le modèle tous les 1000 batchs
         save_strategy="steps",
-        save_steps=1000,    # Sauvegarde un checkpoint en même temps
+        save_steps=250,    # Sauvegarde un checkpoint en même temps
         load_best_model_at_end=True,
         metric_for_best_model="bleu",
         greater_is_better=True,
