@@ -24,6 +24,7 @@ LOG_DIR           = "logs/tensorboard"
 BURKINA_LANGS = [
     ("moore",        "mos", "mos_Latn"),
     ("dioula",       "dyu", "dyu_Latn"),
+    ("bambara",      "bam", "bam_Latn"),
     ("fulfulde",     "fuv", "fuv_Latn"),
     ("gourmantsema", "gux", "gux_Latn"),
     ("dagaare",      "dga", "dga_Latn"),
@@ -38,6 +39,7 @@ LANG_CODES = {
     # codes internes
     "moore":        "mos_Latn",
     "dioula":       "dyu_Latn",
+    "bambara":      "bam_Latn",
     "fulfulde":     "fuv_Latn",
     "gourmantsema": "gux_Latn",
     "dagaare":      "dga_Latn",
@@ -46,6 +48,7 @@ LANG_CODES = {
     # codes ISO courts
     "mos": "mos_Latn",
     "dyu": "dyu_Latn",
+    "bam": "bam_Latn",
     "fuv": "fuv_Latn",
     "gux": "gux_Latn",
     "dga": "dga_Latn",

@@ -66,20 +66,6 @@ ter_metric  = evaluate.load("ter")
 
 # ── Chargement modèle ─────────────────────────────────────────────────
 
-# def load_model(model_path: str):
-#     logger.info(f"Chargement modèle : {model_path}")
-#     tokenizer = AutoTokenizer.from_pretrained(model_path)
-#     model = AutoModelForSeq2SeqLM.from_pretrained(
-#         model_path,
-#         dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
-#         low_cpu_mem_usage=True,
-#         use_safetensors=True,
-#     ).to(DEVICE)
-#     model.eval()
-#     logger.info(f"✅ Modèle chargé sur {DEVICE}")
-#     return tokenizer, model
-
-
 def load_model(model_path: str):
     logger.info(f"Chargement modèle : {model_path}")
 

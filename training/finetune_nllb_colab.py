@@ -61,8 +61,8 @@ LANG_CODES = {
 }
 
 TRAIN_EPOCHS            = 5
-BATCH_SIZE              = 4     # 8
-GRADIENT_ACCUMULATION   = 8  # 2
+BATCH_SIZE              = 16     # 8
+GRADIENT_ACCUMULATION   = 2  # 2
 LEARNING_RATE           = 3e-4  # Au lieu de 5e-5
 WARMUP_STEPS            = 500
 MAX_SOURCE_LENGTH       = 256
@@ -331,9 +331,9 @@ def train(tokenizer, model, tokenized_datasets):
         # Epochs et batch
         num_train_epochs=TRAIN_EPOCHS,
         per_device_train_batch_size=BATCH_SIZE,
-        per_device_eval_batch_size=BATCH_SIZE,
+        per_device_eval_batch_size=BATCH_SIZE*2,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION,  # 2
-        gradient_checkpointing=True,
+        gradient_checkpointing=False,
         gradient_checkpointing_kwargs={"use_reentrant": False},
 
         # Optimiseur
@@ -368,7 +368,7 @@ def train(tokenizer, model, tokenized_datasets):
         save_total_limit=SAVE_TOTAL_LIMIT,
         push_to_hub=False,
         # ✅ 0 sur Windows pour éviter les erreurs multiprocessing
-        dataloader_num_workers=0,
+        dataloader_num_workers=2,
     )
 
 

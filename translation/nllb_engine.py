@@ -8,6 +8,7 @@ from peft import PeftModel
 BURKINA_LANG_CODES = {
     "moore": "mos_Latn",
     "dioula": "dyu_Latn",
+    "bambara": "bam_Latn",
     "fulfulde": "fuv_Latn",
     "gourmantsema": "gux_Latn",
     "dagaare": "dga_Latn",
