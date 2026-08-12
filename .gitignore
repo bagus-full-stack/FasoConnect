@@ -88,7 +88,7 @@ node_modules/
 # ══════════════════════════════════════════
 *.sqlite
 *.db
-data/
+#data/
 datasets/
 corpus/
 .gitkeep

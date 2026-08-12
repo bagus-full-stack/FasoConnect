@@ -61,7 +61,7 @@ LANG_CODES = {
 }
 
 TRAIN_EPOCHS            = 5
-BATCH_SIZE              = 16     # 8
+BATCH_SIZE              = 8     # 8
 GRADIENT_ACCUMULATION   = 4  # 2
 LEARNING_RATE           = 3e-4  # Au lieu de 5e-5
 WARMUP_STEPS            = 500
@@ -333,7 +333,7 @@ def train(tokenizer, model, tokenized_datasets):
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION,  # 2
-        gradient_checkpointing=False,
+        gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
 
         # Optimiseur
