@@ -399,7 +399,17 @@ def train(tokenizer, model, tokenized_datasets):
     logger.info(f"  TBoard  : tensorboard --logdir {LOG_DIR}")
 
     t0 = time.time()
-    trainer.train()
+    # trainer.train()
+
+    import glob
+    checkpoints = glob.glob(f"{OUTPUT_DIR}/checkpoint-*")
+    if checkpoints:
+        latest_checkpoint = max(checkpoints, key=os.path.getctime)
+        logger.info(f"Reprise de l'entraînement depuis : {latest_checkpoint}")
+        trainer.train(resume_from_checkpoint=latest_checkpoint)
+    else:
+        trainer.train()
+
     duration = round((time.time() - t0) / 60, 1)
     logger.info(f"Fine-tuning terminé en {duration} minutes")
 
