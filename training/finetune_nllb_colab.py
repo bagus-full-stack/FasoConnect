@@ -62,7 +62,7 @@ LANG_CODES = {
 
 TRAIN_EPOCHS            = 5
 BATCH_SIZE              = 8     # 8
-GRADIENT_ACCUMULATION   = 4  # 2
+GRADIENT_ACCUMULATION   = 2  # 2
 LEARNING_RATE           = 3e-4  # Au lieu de 5e-5
 WARMUP_STEPS            = 500
 MAX_SOURCE_LENGTH       = 256
@@ -352,11 +352,12 @@ def train(tokenizer, model, tokenized_datasets):
         save_strategy="steps",
         save_steps=250,    # Sauvegarde un checkpoint en même temps
         load_best_model_at_end=True,
-        metric_for_best_model="bleu",
-        greater_is_better=True,
+        # metric_for_best_model="bleu",
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
 
         # Génération
-        predict_with_generate=True,
+        # predict_with_generate=True,
         generation_max_length=MAX_TARGET_LENGTH,
 
         # Logs
@@ -368,7 +369,7 @@ def train(tokenizer, model, tokenized_datasets):
         save_total_limit=SAVE_TOTAL_LIMIT,
         push_to_hub=False,
         # ✅ 0 sur Windows pour éviter les erreurs multiprocessing
-        dataloader_num_workers=4,
+        dataloader_num_workers=2,
     )
 
 
@@ -384,7 +385,7 @@ def train(tokenizer, model, tokenized_datasets):
             label_pad_token_id=-100,
             pad_to_multiple_of=8 if DEVICE == "cuda" else None,
         ),
-        compute_metrics=make_compute_metrics(tokenizer),
+        # compute_metrics=make_compute_metrics(tokenizer),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=EARLY_STOP_PATIENCE)],
     )
 
