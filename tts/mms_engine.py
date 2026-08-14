@@ -11,7 +11,8 @@ from transformers import VitsModel, AutoTokenizer
 MMS_TTS_MODELS = {
     "moore":        "facebook/mms-tts-mos",
     "dioula":       "facebook/mms-tts-dyu",
-    "fulfulde":     "facebook/mms-tts-fuv",
+    "bambara":      "facebook/mms-tts-bam",
+    "fulfulde":     "facebook/mms-tts-ful",
     "gourmantsema": "facebook/mms-tts-gux",
     "dagaare":      "facebook/mms-tts-dga",
     "francais":     "facebook/mms-tts-fra",
